@@ -99,8 +99,8 @@ class ModelConfig:
     """
     Configuration object to store model, tokenizer, and API client settings.
     
-    When using API-based models (e.g. OpenAI, Gemini, Together, or Groq), the model and tokenizer
-    may be None.
+    When using API-based models (e.g. OpenAI, Gemini, Together, Groq, or OpenRouter), 
+    the model and tokenizer may be None.
     """
     def __init__(self, model_str, model=None, tokenizer=None, api_type=None,
                  cost_per_M_input=None, cost_per_M_output=None):
@@ -112,7 +112,7 @@ class ModelConfig:
         self.cost_per_M_input = cost_per_M_input
         self.cost_per_M_output = cost_per_M_output
 
-        # Initialize API client if applicable.
+        # Initialize API client if applicable
         if api_type in ["openai", "gemini", "together", "groq", "openrouter"]:
             if api_type == "together":
                 api_key = os.getenv("TOGETHER_API_KEY")
@@ -121,13 +121,15 @@ class ModelConfig:
                 api_key = os.getenv("GROQ_API_KEY")
                 base_url = "https://api.groq.com/openai/v1"
             elif api_type == "openrouter":
-                api_key = os.getenv("OPENROUTER_API_KEY")   
+                api_key = os.getenv("OPENROUTER_API_KEY")
                 base_url = "https://openrouter.ai/api/v1"
-            else:
+            else:  # openai or gemini
                 api_key = os.getenv("GEMINI_API_KEY" if api_type == "gemini" else "OPENAI_API_KEY")
                 base_url = "https://generativelanguage.googleapis.com/v1beta/openai/" if api_type == "gemini" else None
+
             if not api_key:
                 raise ValueError(f"Missing {api_type.upper()} API key. Set the appropriate environment variable.")
+
             self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     def unload(self):
@@ -139,47 +141,45 @@ def llm_configure(model_str, cost_per_M_input=None, cost_per_M_output=None,
     """
     Configures the model based on the provided model_str and optional llm_provider.
     
-    If llm_provider is None, then:
-      - If the expanded model_str is in OPENAI_MODELS or GEMINI_MODELS, then a configuration 
-        using that API is returned.
+    If llm_provider is None:
+      - If the expanded model_str is in OPENAI_MODELS or GEMINI_MODELS, an API-based configuration is returned.
       - Otherwise, a local Hugging Face model is loaded (with caching).
     
     If llm_provider is provided, it must be one of "openai", "gemini", "together", "groq", or "openrouter",
     and the corresponding API is used regardless of the model name.
     
     Parameters:
-      model_str (str): A model name string (can be a short alias or a full model name).
+      model_str (str): A model name string (can be a short alias or full model name).
       cost_per_M_input (float, optional): Cost per million input tokens (for API-based models).
       cost_per_M_output (float, optional): Cost per million output tokens (for API-based models).
-      llm_provider (str, optional): Either None (to load a local model or default API from short name)
-          or one of "openai", "gemini", "together", or "groq".
+      llm_provider (str, optional): Either None (to infer provider) or one of the API providers.
     
     Returns:
       ModelConfig: The configuration object with model, tokenizer, and API client settings.
     """
     model_str = model_str.strip()
     valid_api_providers = ["openai", "gemini", "together", "groq", "openrouter"]
-    
-    # Expand short names.
+
+    # Expand short names
     if model_str in SHORT_NAME_MAP:
         model_str = SHORT_NAME_MAP[model_str]
-    
-    # If llm_provider is provided, use that API regardless of model_str.
+
+    # If llm_provider is explicitly provided
     if llm_provider is not None:
         if llm_provider.lower() not in valid_api_providers:
             raise ValueError("llm_provider must be either None or one of 'openai', 'gemini', 'together', 'groq', or 'openrouter'.")
         return ModelConfig(model_str, api_type=llm_provider.lower(),
                            cost_per_M_input=cost_per_M_input, cost_per_M_output=cost_per_M_output)
-    
-    # If llm_provider is None, check if the model_str is one of the API models.
+
+    # Otherwise infer from model_str
     if model_str in OPENAI_MODELS:
         return ModelConfig(model_str, api_type="openai",
                            cost_per_M_input=cost_per_M_input, cost_per_M_output=cost_per_M_output)
     if model_str in GEMINI_MODELS:
         return ModelConfig(model_str, api_type="gemini",
                            cost_per_M_input=cost_per_M_input, cost_per_M_output=cost_per_M_output)
-    
-    # Otherwise, assume a local Hugging Face model.
+
+    # Otherwise, load locally
     global LOADED_MODELS, LOADED_TOKENIZERS
     if model_str in LOADED_MODELS:
         return ModelConfig(model_str, LOADED_MODELS[model_str], LOADED_TOKENIZERS[model_str],
@@ -188,7 +188,7 @@ def llm_configure(model_str, cost_per_M_input=None, cost_per_M_output=None,
         release_model()
         torch.cuda.empty_cache()
         gc.collect()
-    
+
     print(f"🚀 Loading model: {model_str} (this may take a while)...")
     try:
         model = AutoModelForCausalLM.from_pretrained(
