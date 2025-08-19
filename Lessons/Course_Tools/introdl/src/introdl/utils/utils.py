@@ -434,7 +434,7 @@ def config_paths_keys(env_path=None, api_env_path=None):
     # -- Path setup --
     if environment in {"colab", "lightning"}:
         # Treat Lightning like Colab: Create local temp_workspace
-        base_path = Path.home() / "temp_workspace"
+        base_path = get_workspace_dir(environment)
         data_path = base_path / "data"
         models_path = base_path / "models"
         cache_path = base_path / "downloads"
@@ -451,27 +451,41 @@ def config_paths_keys(env_path=None, api_env_path=None):
         os.environ["TQDM_NOTEBOOK"] = "true"
 
     else:
-        # Use environment file (dotenv) if not Colab/Lightning
-        if env_path:
-            env_file = Path(env_path).expanduser()
+        # Determine base directory for paths
+        # If DS776_ROOT_DIR is set, use course root, otherwise use home directory
+        if 'DS776_ROOT_DIR' in os.environ:
+            base_dir = get_course_root()
+            print(f"📁 Using course root for workspace: {base_dir}")
         else:
-            env_map = {
-                "cocalc_compute_server": "~/Lessons/Course_Tools/cocalc_compute_server.env",
-                "cocalc": "~/Lessons/Course_Tools/cocalc.env",
-                "colab": "~/Lessons/Course_Tools/google_colab.env",
-                "lightning": "~/Lessons/Course_Tools/google_colab.env"  # treat Lightning like Colab
-            }
-            env_file = Path(env_map.get(environment, "~/Lessons/Course_Tools/local.env")).expanduser()
-
-        if env_file.exists():
+            base_dir = Path.home()
+            print(f"📁 Using home directory for workspace: {base_dir}")
+        
+        # Check for environment file but don't rely on it for DS776_ROOT_DIR case
+        env_file = resolve_env_file(env_path, environment)
+        
+        # Only load env file if DS776_ROOT_DIR is NOT set
+        # (when DS776_ROOT_DIR is set, we want to use course-relative paths)
+        if 'DS776_ROOT_DIR' not in os.environ and env_file.exists():
             load_dotenv(env_file, override=False)
             print(f"Loaded workspace paths from: {env_file}")
+        
+        # Set paths based on whether DS776_ROOT_DIR is available
+        if 'DS776_ROOT_DIR' in os.environ:
+            # Use course-relative paths for local development
+            # Force override any existing env vars when DS776_ROOT_DIR is set
+            data_path = base_dir / "data"
+            models_path = base_dir / "models"
+            cache_path = base_dir / "downloads"
+            
+            # Update environment variables to match
+            os.environ["DATA_PATH"] = str(data_path)
+            os.environ["MODELS_PATH"] = str(models_path)
+            os.environ["CACHE_PATH"] = str(cache_path)
         else:
-            print(f"⚠️ .env file not found: {env_file}")
-
-        data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
-        models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
-        cache_path = Path(os.getenv("CACHE_PATH", "~/cache")).expanduser()
+            # Use home directory paths for students (or env file values if loaded)
+            data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+            models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+            cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
 
         for path in [data_path, models_path, cache_path]:
             path.mkdir(parents=True, exist_ok=True)
@@ -486,42 +500,67 @@ def config_paths_keys(env_path=None, api_env_path=None):
     print(f"✅ Workspace paths configured for {env_names.get(environment, 'Unknown')}\n")
 
     # -- Load API keys --
-    api_keys_file = None
-    if api_env_path:
-        api_keys_file = Path(api_env_path).expanduser()
-    else:
-        default_api_paths = [
-            Path.home() / "api_keys.env",
-            Path("/content/drive/MyDrive/Colab Notebooks/api_keys.env") if environment == "colab" else None,
-            Path("~/Lessons/Course_Tools/api_keys.env").expanduser()
-        ]
-        for path in default_api_paths:
-            if path and path.exists():
-                api_keys_file = path
-                break
-
+    # First, capture which API keys/tokens are already in the environment
+    existing_keys = {}
+    key_patterns = ["_API_KEY", "_TOKEN"]
+    for key in os.environ:
+        for pattern in key_patterns:
+            if pattern in key:
+                existing_keys[key] = os.environ[key]
+    
+    # Find the API keys file using path_utils
+    api_keys_file = resolve_api_keys_file(api_env_path)
+    
+    # Special handling for Colab - check Google Drive location
+    if environment == "colab" and not api_keys_file:
+        colab_path = Path("/content/drive/MyDrive/Colab Notebooks/api_keys.env")
+        if colab_path.exists():
+            api_keys_file = colab_path
+    
     if api_keys_file and api_keys_file.exists():
+        # Load API keys but don't override existing environment variables
         load_dotenv(api_keys_file, override=False)
-        print(f"✅ Loaded API keys from: {api_keys_file}\n")
+        print(f"✅ Loaded API keys from: {api_keys_file}")
+        
+        # Report which keys were already in environment vs loaded from file
+        new_keys = []
+        skipped_keys = []
+        for key in os.environ:
+            for pattern in key_patterns:
+                if pattern in key and os.environ[key] != "abcdefg":
+                    if key in existing_keys:
+                        if existing_keys[key] != "abcdefg":
+                            skipped_keys.append(key)
+                    else:
+                        new_keys.append(key)
+        
+        if skipped_keys:
+            print(f"   Kept existing environment keys: {', '.join(sorted(skipped_keys))}")
+        if new_keys:
+            print(f"   Loaded new keys from file: {', '.join(sorted(new_keys))}")
+        print()
     else:
         print("⚠️ No api_keys.env file found.\n")
 
     # -- List loaded API keys --
     found_keys = [
         key for key in os.environ
-        if key.endswith("_API_KEY") and os.environ[key] != "abcdefg"
+        if (key.endswith("_API_KEY") or key.endswith("_TOKEN")) and os.environ[key] != "abcdefg"
     ]
+    
     if found_keys:
-        print("\n🔐 API keys loaded (excluding 'abcdefg'):")
+        print("🔐 API keys/tokens available (excluding placeholders):")
         for key in sorted(found_keys):
-            print(f"  - {key}")
+            # Show first 4 chars of the key value for verification (safe for API keys)
+            value_preview = os.environ[key][:4] + "..." if len(os.environ[key]) > 4 else "***"
+            print(f"  - {key}: {value_preview}")
         print("")
     else:
-        print("\n⚠️ No valid *_API_KEY environment variables found (excluding 'abcdefg').")
+        print("⚠️ No valid API keys or tokens found (excluding 'abcdefg' placeholders).\n")
 
     # -- Hugging Face login if token available --
     hf_token = os.getenv("HF_TOKEN")
-    if hf_token:
+    if hf_token and hf_token != "abcdefg":
         try:
             import logging
             logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
@@ -531,7 +570,7 @@ def config_paths_keys(env_path=None, api_env_path=None):
         except Exception as e:
             print(f"[ERROR] Hugging Face login failed: {e}")
     else:
-        print("⚠️ HF_TOKEN not set. Set it in api_keys.env or the environment.")
+        print("⚠️ HF_TOKEN not set or is placeholder. Set it in api_keys.env or the environment.")
 
     return {
         'MODELS_PATH': models_path,
