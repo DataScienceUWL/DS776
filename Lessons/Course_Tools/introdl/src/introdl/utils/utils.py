@@ -445,9 +445,23 @@ def config_paths_keys(env_path=None, api_env_path=None):
         os.environ["DATA_PATH"] = str(data_path)
         os.environ["MODELS_PATH"] = str(models_path)
         os.environ["CACHE_PATH"] = str(cache_path)
+        # Configure ALL caching locations to use our cache_path
+        # This centralizes all downloaded models in one place for easy cleanup
+        
+        # PyTorch/torchvision pretrained models
         os.environ["TORCH_HOME"] = str(cache_path)
-        os.environ["HF_HOME"] = str(cache_path)
-        os.environ["HF_DATASETS_CACHE"] = str(data_path)
+        os.environ["TORCH_HUB"] = str(cache_path / "hub")  # For torch.hub models
+        
+        # HuggingFace models and datasets
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)  # Datasets go to data_path
+        
+        # General cache location (used by some libraries as fallback)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
+        
+        # TQDM settings
         os.environ["TQDM_NOTEBOOK"] = "true"
 
     else:
@@ -490,9 +504,21 @@ def config_paths_keys(env_path=None, api_env_path=None):
         for path in [data_path, models_path, cache_path]:
             path.mkdir(parents=True, exist_ok=True)
 
+        # Configure ALL caching locations to use our cache_path
+        # This centralizes all downloaded models in one place for easy cleanup
+        
+        # PyTorch/torchvision pretrained models
         os.environ["TORCH_HOME"] = str(cache_path)
-        os.environ["HF_HOME"] = str(cache_path)
-        os.environ["HF_DATASETS_CACHE"] = str(data_path)
+        os.environ["TORCH_HUB"] = str(cache_path / "hub")  # For torch.hub models
+        
+        # HuggingFace models and datasets
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)  # Datasets go to data_path
+        
+        # General cache location (used by some libraries as fallback)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
 
     print(f"DATA_PATH={data_path}")
     print(f"MODELS_PATH={models_path}")
@@ -581,12 +607,129 @@ def config_paths_keys(env_path=None, api_env_path=None):
     else:
         print("⚠️ HF_TOKEN not set or is placeholder. Set it in api_keys.env or the environment.")
 
+    # Print cache configuration info
+    print("\n📦 Model Cache Configuration:")
+    print(f"   Student models: {models_path}")
+    print(f"   Cached models: {cache_path}")
+    print("   - PyTorch models: {}/hub".format(cache_path))
+    print("   - HuggingFace models: {}/huggingface".format(cache_path))
+    print("   💡 Run Install_and_Clean.ipynb to manage cache space")
+    
     return {
         'MODELS_PATH': models_path,
         'DATA_PATH': data_path,
         'CACHE_PATH': cache_path
     }
 
+
+def check_cache_usage():
+    """
+    Check disk usage of cache directories.
+    Returns a dictionary with size information.
+    """
+    import subprocess
+    from pathlib import Path
+    
+    def get_dir_size(path):
+        """Get directory size in bytes"""
+        if not path.exists():
+            return 0
+        try:
+            result = subprocess.run(['du', '-sb', str(path)], 
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                return int(result.stdout.split()[0])
+        except:
+            pass
+        return 0
+    
+    def format_size(size_bytes):
+        """Format bytes to human readable"""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} TB"
+    
+    cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+    models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+    data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+    
+    sizes = {}
+    
+    # Check cache subdirectories
+    if cache_path.exists():
+        sizes['cache_total'] = get_dir_size(cache_path)
+        sizes['pytorch_cache'] = get_dir_size(cache_path / "hub")
+        sizes['huggingface_cache'] = get_dir_size(cache_path / "huggingface")
+    else:
+        sizes['cache_total'] = 0
+        sizes['pytorch_cache'] = 0
+        sizes['huggingface_cache'] = 0
+    
+    # Check other directories
+    sizes['student_models'] = get_dir_size(models_path) if models_path.exists() else 0
+    sizes['datasets'] = get_dir_size(data_path) if data_path.exists() else 0
+    
+    # Print summary
+    print("📊 Storage Usage Summary:")
+    print("-" * 40)
+    print(f"Student Models ({models_path.name}): {format_size(sizes['student_models'])}")
+    print(f"Datasets ({data_path.name}): {format_size(sizes['datasets'])}")
+    print(f"Model Cache ({cache_path.name}): {format_size(sizes['cache_total'])}")
+    if sizes['pytorch_cache'] > 0:
+        print(f"  - PyTorch models: {format_size(sizes['pytorch_cache'])}")
+    if sizes['huggingface_cache'] > 0:
+        print(f"  - HuggingFace models: {format_size(sizes['huggingface_cache'])}")
+    print("-" * 40)
+    print(f"Total: {format_size(sum(sizes.values()))}")
+    
+    return sizes
+
+def clear_model_cache(cache_type="all", dry_run=True):
+    """
+    Clear cached pretrained models.
+    
+    Args:
+        cache_type: "all", "pytorch", "huggingface", or "datasets"
+        dry_run: If True, only show what would be deleted
+    """
+    import shutil
+    from pathlib import Path
+    
+    cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+    data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+    
+    paths_to_clear = []
+    
+    if cache_type in ["all", "pytorch"]:
+        pytorch_cache = cache_path / "hub"
+        if pytorch_cache.exists():
+            paths_to_clear.append(("PyTorch cache", pytorch_cache))
+    
+    if cache_type in ["all", "huggingface"]:
+        hf_cache = cache_path / "huggingface"
+        if hf_cache.exists():
+            paths_to_clear.append(("HuggingFace cache", hf_cache))
+    
+    if cache_type in ["all", "datasets"]:
+        if data_path.exists():
+            paths_to_clear.append(("Datasets", data_path))
+    
+    if dry_run:
+        print("🔍 Would delete the following:")
+        for name, path in paths_to_clear:
+            if path.exists():
+                size = check_cache_usage().get(name.lower().replace(" ", "_"), 0)
+                print(f"  - {name}: {path}")
+    else:
+        print("🗑️ Clearing cache...")
+        for name, path in paths_to_clear:
+            if path.exists():
+                print(f"  Removing {name}...")
+                shutil.rmtree(path)
+                path.mkdir(parents=True, exist_ok=True)
+        print("✅ Cache cleared!")
 
 def get_device():
     """

@@ -9,6 +9,8 @@ from .utils import wrap_print_text
 from .utils import config_paths_keys
 from .utils import cleanup_torch
 from .utils import convert_nb_to_html
+from .utils import check_cache_usage
+from .utils import clear_model_cache
 
 # Import path utilities
 from .path_utils import (
@@ -34,6 +36,8 @@ __all__ = [
     "config_paths_keys",
     "cleanup_torch",  
     "convert_nb_to_html",
+    "check_cache_usage",
+    "clear_model_cache",
     # Path utilities
     "get_course_root",
     "get_lessons_dir", 
