@@ -1,75 +1,60 @@
-import os
 import sys
-import importlib
-import site
+import subprocess
+from pathlib import Path
 
-'''
-def ensure_introdl_installed(force_update=False, local_path_pkg='~/Lessons/Course_Tools/introdl'):
-    """Ensure the `introdl` module is installed, using the same environment as Jupyter."""
-    local_path_pkg = os.path.expanduser(local_path_pkg)
+def find_course_tools_path():
+    """
+    Finds the 'Course_Tools' directory by searching upwards from the current directory.
+    This makes the path resolution independent of the project's root location.
+    """
+    current_path = Path.cwd()
+    while current_path != current_path.parent: # Stop at the filesystem root
+        target_path = current_path / 'Course_Tools'
+        if target_path.is_dir():
+            return target_path.resolve()
+        current_path = current_path.parent
+    return None # Return None if not found
 
-    # Check if `introdl` is already installed
+# A global flag to ensure this function only runs once per session
+__COURSE_PACKAGE_CHECKED = False
+
+def install_course_package():
+    """
+    Checks if the 'introdl' package is installed. If not, installs it
+    and instructs the user to restart the kernel. Runs only once per session.
+    """
+    global __COURSE_PACKAGE_CHECKED
+    if __COURSE_PACKAGE_CHECKED:
+        return
+
     try:
         import introdl
-        if not force_update:
-            print("The `introdl` module is already installed.")
+        print("✅ The 'introdl' package is already installed and ready to use.")
+        
+    except ImportError:
+        print("🛠️ The 'introdl' package was not found. Attempting to install now...")
+        
+        course_tools_dir = find_course_tools_path()
+        if course_tools_dir is None:
+            print("❌ Error: Could not find the 'Course_Tools' directory.")
+            print("Please ensure your notebook is saved within the main project folder.")
             return
-        print("Force update requested. Uninstalling `introdl`...")
-        os.system("pip uninstall -y introdl")
-    except ImportError:
-        print("The `introdl` module is not installed. Proceeding with installation...")
 
-    # Install the package
-    if os.path.isdir(local_path_pkg):
-        print(f"Installing `introdl` from local directory: {local_path_pkg}")
-        os.system(f"pip install {local_path_pkg}")
-    else:
-        print(f"Local directory not found at {local_path_pkg}. Installing from GitHub...")
-        github_url = "git+https://github.com/DataScienceUWL/DS776.git#subdirectory=resources/introdl"
-        os.system(f"pip install {github_url}")
-
-    # Refresh sys.path and site-packages
-    importlib.reload(site)
-
-    # Ensure the package is available without restarting the kernel
-    try:
-        import introdl
-        importlib.reload(introdl)  # Reload the package to reflect changes
-        print("The `introdl` module is now installed and available.")
-    except ImportError:
-        print("Try restarting the kernel and running this cell again to see if installation was successful.")
-        raise
-'''
-
-
-def ensure_introdl_installed(force_update=False, local_path_pkg='~/Lessons/Course_Tools/introdl'):
-    """Ensure the `introdl` module is installed, using the same environment as Jupyter."""
-    local_path_pkg = os.path.expanduser(local_path_pkg)
-
-    # Check if `introdl` is already installed
-    try:
-        import introdl
-        if not force_update:
-            print("The `introdl` module is already installed.")
+        package_path = course_tools_dir / 'introdl'
+        if not package_path.exists():
+            print(f"❌ Error: The package directory was not found at: {package_path}")
             return
-        print("Force update requested. Uninstalling `introdl`...")
-        os.system("pip uninstall -y introdl")
-    except ImportError:
-        print("The `introdl` module is not installed. Proceeding with installation...")
 
-    # Install the package
-    if os.path.isdir(local_path_pkg):
-        print(f"Installing `introdl` from local directory: {local_path_pkg}")
-        os.system(f"pip install {local_path_pkg}")
-    else:
-        print(f"Local directory not found at {local_path_pkg}. Installing from GitHub...")
-        github_url = "git+https://github.com/DataScienceUWL/DS776.git#subdirectory=resources/introdl"
-        os.system(f"pip install {github_url}")
-
-    # Verify installation
-    try:
-        import introdl
-        print("The `introdl` module is now installed.")
-    except ImportError:
-        print("Try restarting the kernel and running this cell again to see if installation was successful.")
-        raise
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-e", str(package_path)], 
+                check=True, capture_output=True, text=True
+            )
+            print("\n✅ Installation successful!")
+            print("\n‼️ IMPORTANT: Please restart the notebook kernel before proceeding.")
+            
+        except subprocess.CalledProcessError as e:
+            print("\n❌ Installation failed. Please see the error below:")
+            print(e.stderr)
+    
+    __COURSE_PACKAGE_CHECKED = True

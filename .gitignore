@@ -21,3 +21,6 @@ Solutions/
 
 # Ignore extras folder
 extras/
+
+# Ignore Textbooks
+Textbooks/
