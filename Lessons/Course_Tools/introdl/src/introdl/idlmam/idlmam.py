@@ -13,10 +13,10 @@ from introdl.utils import load_model, load_results
 
 # Suppress tqdm experimental warning
 import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    warnings.filterwarnings("ignore", message=".*experimental.*")
-    from tqdm.autonotebook import tqdm
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*experimental.*")
+warnings.filterwarnings("ignore", message=".*tqdm.autonotebook.*")
+from tqdm.autonotebook import tqdm
 
 # Set Seaborn theme
 sns.set_theme(style="darkgrid")

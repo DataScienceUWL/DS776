@@ -567,10 +567,11 @@ def config_paths_keys(env_path=None, api_env_path=None):
             # Suppress all HF hub warnings and info messages
             logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
             logging.getLogger("huggingface_hub.utils._token").setLevel(logging.ERROR)
+            logging.getLogger("huggingface_hub._login").setLevel(logging.ERROR)
             
-            # Suppress the specific warning about token already being set
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message=".*Environment variable.*HF_TOKEN.*is set.*")
+                warnings.filterwarnings("ignore", message=".*Environment variable.*HF_TOKEN.*")
+                warnings.filterwarnings("ignore", message=".*Note: Environment variable.*")
                 warnings.filterwarnings("ignore", category=UserWarning)
                 from huggingface_hub import login
                 login(token=hf_token, add_to_git_credential=False)
