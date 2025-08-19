@@ -24,3 +24,7 @@ extras/
 
 # Ignore Textbooks
 Textbooks/
+
+# Testing scripts (contain credentials)
+test_in_cocalc.sh
+update_cocalc_test.sh

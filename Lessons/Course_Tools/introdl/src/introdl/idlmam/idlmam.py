@@ -11,9 +11,12 @@ import matplotlib.pyplot as plt
 import time
 from introdl.utils import load_model, load_results
 
+# Suppress tqdm experimental warning
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="tqdm.autonotebook")
-from tqdm.autonotebook import tqdm
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    warnings.filterwarnings("ignore", message=".*experimental.*")
+    from tqdm.autonotebook import tqdm
 
 # Set Seaborn theme
 sns.set_theme(style="darkgrid")

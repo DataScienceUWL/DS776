@@ -563,9 +563,17 @@ def config_paths_keys(env_path=None, api_env_path=None):
     if hf_token and hf_token != "abcdefg":
         try:
             import logging
+            import warnings
+            # Suppress all HF hub warnings and info messages
             logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-            from huggingface_hub import login
-            login(token=hf_token)
+            logging.getLogger("huggingface_hub.utils._token").setLevel(logging.ERROR)
+            
+            # Suppress the specific warning about token already being set
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Environment variable.*HF_TOKEN.*is set.*")
+                warnings.filterwarnings("ignore", category=UserWarning)
+                from huggingface_hub import login
+                login(token=hf_token, add_to_git_credential=False)
             print("✅ Logged into Hugging Face Hub.")
         except Exception as e:
             print(f"[ERROR] Hugging Face login failed: {e}")
