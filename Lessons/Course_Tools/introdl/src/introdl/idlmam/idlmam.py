@@ -115,8 +115,8 @@ def run_epoch(model, optimizer, data_loader, loss_func, device, results, score_f
                         f"lr_schedule.total_steps={lr_schedule.total_steps}."
                     )
         
-        # Store loss
-        running_loss.append(loss.item())
+        # Store loss (detach to avoid gradient warning)
+        running_loss.append(loss.detach().item())
 
         if score_funcs is not None and len(score_funcs) > 0 and isinstance(labels, torch.Tensor):
             # Move labels & predictions back to CPU for processing and metric calculation
