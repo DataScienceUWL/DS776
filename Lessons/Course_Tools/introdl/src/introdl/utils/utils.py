@@ -409,6 +409,9 @@ def config_paths_keys(env_path=None, api_env_path=None):
     from pathlib import Path
     from dotenv import load_dotenv
     from introdl.utils import detect_jupyter_environment  # adjust if needed
+    from introdl.utils.path_utils import (
+        get_course_root, get_workspace_dir, resolve_env_file, resolve_api_keys_file
+    )
 
     env_names = {
         "colab": "Official Google Colab",
@@ -421,7 +424,12 @@ def config_paths_keys(env_path=None, api_env_path=None):
     }
 
     environment = detect_jupyter_environment()
-    print(f"✅ Detected environment: {env_names.get(environment, 'Unknown')}\n")
+    print(f"✅ Detected environment: {env_names.get(environment, 'Unknown')}")
+    
+    # Show course root if DS776_ROOT_DIR is set
+    if 'DS776_ROOT_DIR' in os.environ:
+        print(f"   Using course root: {get_course_root()} (from DS776_ROOT_DIR)")
+    print()
 
     # -- Path setup --
     if environment in {"colab", "lightning"}:

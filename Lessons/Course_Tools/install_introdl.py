@@ -1,18 +1,40 @@
 import sys
+import os
 import subprocess
 from pathlib import Path
 
 def find_course_tools_path():
     """
-    Finds the 'Course_Tools' directory by searching upwards from the current directory.
-    This makes the path resolution independent of the project's root location.
+    Finds the 'Course_Tools' directory using the following priority:
+    1. DS776_ROOT_DIR environment variable if set
+    2. Search upwards from current directory
+    3. Default to ~/Lessons/Course_Tools
     """
+    # Check DS776_ROOT_DIR environment variable first
+    if 'DS776_ROOT_DIR' in os.environ:
+        root_dir = Path(os.environ['DS776_ROOT_DIR']).expanduser().resolve()
+        course_tools = root_dir / 'Lessons' / 'Course_Tools'
+        if course_tools.exists():
+            return course_tools
+        print(f"⚠️  Warning: Course_Tools not found at {course_tools} (from DS776_ROOT_DIR)")
+    
+    # Search upwards from current directory
     current_path = Path.cwd()
     while current_path != current_path.parent: # Stop at the filesystem root
         target_path = current_path / 'Course_Tools'
         if target_path.is_dir():
             return target_path.resolve()
+        # Also check for Lessons/Course_Tools pattern
+        lessons_path = current_path / 'Lessons' / 'Course_Tools'
+        if lessons_path.is_dir():
+            return lessons_path.resolve()
         current_path = current_path.parent
+    
+    # Default to ~/Lessons/Course_Tools (CoCalc default)
+    default_path = Path('~/Lessons/Course_Tools').expanduser()
+    if default_path.exists():
+        return default_path
+    
     return None # Return None if not found
 
 # A global flag to ensure this function only runs once per session
