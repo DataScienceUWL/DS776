@@ -398,9 +398,14 @@ def detect_jupyter_environment():
 #         'CACHE_PATH': cache_path
 #     }
 
-def config_paths_keys(env_path=None, api_env_path=None):
+def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     """
     Configures workspace paths and loads API keys based on the runtime environment.
+    
+    Args:
+        env_path: Path to environment file (optional)
+        api_env_path: Path to API keys file (optional)
+        local_workspace: If True, creates workspace in notebook's directory (for testing)
 
     Returns:
         dict: {'MODELS_PATH', 'DATA_PATH', 'CACHE_PATH'}
@@ -412,6 +417,10 @@ def config_paths_keys(env_path=None, api_env_path=None):
     from introdl.utils.path_utils import (
         get_course_root, get_workspace_dir, resolve_env_file, resolve_api_keys_file
     )
+    
+    # Check for environment variable override
+    if os.environ.get('DS776_LOCAL_WORKSPACE', '').lower() == 'true':
+        local_workspace = True
 
     env_names = {
         "colab": "Official Google Colab",
@@ -424,15 +433,65 @@ def config_paths_keys(env_path=None, api_env_path=None):
     }
 
     environment = detect_jupyter_environment()
-    print(f"✅ Detected environment: {env_names.get(environment, 'Unknown')}")
     
-    # Show course root if DS776_ROOT_DIR is set
-    if 'DS776_ROOT_DIR' in os.environ:
-        print(f"   Using course root: {get_course_root()} (from DS776_ROOT_DIR)")
-    print()
+    # Handle local workspace mode (for testing student solutions)
+    if local_workspace:
+        print(f"📦 Local Workspace Mode - Creating workspace in notebook directory")
+        # Try to get notebook directory, fallback to current working directory
+        try:
+            import ipykernel
+            import json
+            from pathlib import Path
+            
+            # Get the notebook's directory
+            connection_file = ipykernel.get_connection_file()
+            with open(connection_file) as f:
+                kernel_data = json.load(f)
+            
+            # This is imperfect but works for most cases
+            notebook_dir = Path.cwd()
+        except:
+            notebook_dir = Path.cwd()
+        
+        # Create home_workspace in the notebook's directory
+        base_path = notebook_dir / "home_workspace"
+        data_path = base_path / "data"
+        models_path = base_path / "models"
+        cache_path = base_path / "downloads"
+        
+        for path in [data_path, models_path, cache_path]:
+            path.mkdir(parents=True, exist_ok=True)
+        
+        print(f"   Workspace created at: {base_path}")
+        
+        # Set environment variables
+        os.environ["DATA_PATH"] = str(data_path)
+        os.environ["MODELS_PATH"] = str(models_path)
+        os.environ["CACHE_PATH"] = str(cache_path)
+        
+        # Configure caching locations
+        os.environ["TORCH_HOME"] = str(cache_path)
+        os.environ["TORCH_HUB"] = str(cache_path / "hub")
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
+        os.environ["TQDM_NOTEBOOK"] = "true"
+        
+    else:
+        print(f"✅ Detected environment: {env_names.get(environment, 'Unknown')}")
+        
+        # Show course root if DS776_ROOT_DIR is set
+        if 'DS776_ROOT_DIR' in os.environ:
+            print(f"   Using course root: {get_course_root()} (from DS776_ROOT_DIR)")
+        print()
 
     # -- Path setup --
-    if environment in {"colab", "lightning"}:
+    if local_workspace:
+        # Already handled above
+        pass
+    elif environment in {"colab", "lightning"}:
         # Treat Lightning like Colab: Create local temp_workspace
         base_path = get_workspace_dir(environment)
         data_path = base_path / "data"
