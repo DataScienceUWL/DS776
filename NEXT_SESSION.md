@@ -14,15 +14,54 @@
    # Should output: /mnt/e/GDrive_baggett.jeff/Teaching/Classes_current/2025-2026_Fall_DS776/DS776
    ```
 
+## Completed Tasks ✅
+- [x] Updated config_paths_keys() to use path_utils.py
+- [x] Fixed environment variable override when DS776_ROOT_DIR is set
+- [x] Created flexible installation system with DS776_ROOT_DIR support
+- [x] Fixed warning suppressions (tqdm, HuggingFace)
+- [x] Implemented comprehensive model cache management
+- [x] Fixed PyTorch gradient warning
+- [x] Created CoCalc testing scripts (copy folders, not symlinks)
+- [x] Updated L02_1_MNIST_FC.ipynb with new installation approach
+
 ## Remaining Tasks
 
-### 1. Update config_paths_keys Function
-**File**: `Lessons/Course_Tools/introdl/src/introdl/utils/utils.py`
+### 1. Add Version Tracking to introdl Package
+**File**: `Lessons/Course_Tools/introdl/src/introdl/__init__.py`
 
-- [ ] Update the `config_paths_keys()` function to use the new path utilities from `path_utils.py`
-- [ ] Replace hardcoded paths like `~/Lessons/Course_Tools/` with calls to `resolve_env_file()`
-- [ ] Use `get_workspace_dir()` for workspace paths instead of hardcoded defaults
-- [ ] Test with both DS776_ROOT_DIR set (your environment) and unset (student environment)
+- [ ] Add __version__ attribute to package
+- [ ] Display version in config_paths_keys() output
+- [ ] Create version update workflow (bump version on each update)
+- [ ] Students can see version without reinstalling (due to -e mode)
+
+### 2. Test Model Caching and Cleanup
+**Test notebooks from different lessons to verify cache management**
+
+#### Lesson 2 (L02_1_MNIST_FC.ipynb) - Basic PyTorch models
+- [ ] Run notebook and verify models save to MODELS_PATH
+- [ ] Check torchvision datasets go to DATA_PATH
+- [ ] Test cleanup with check_cache_usage() and clear_model_cache()
+
+#### Lesson 5 (Transfer Learning) - Pretrained torchvision models
+- [ ] Download pretrained models (ResNet, etc.)
+- [ ] Verify they cache to CACHE_PATH/hub/
+- [ ] Test that TORCH_HOME and TORCH_HUB env vars work
+- [ ] Clean cache and verify re-download works
+
+#### Lesson 7 (Transformers) - HuggingFace models
+- [ ] Download transformer models
+- [ ] Verify they cache to CACHE_PATH/huggingface/
+- [ ] Test that HF_HOME, TRANSFORMERS_CACHE env vars work
+- [ ] Clean cache and verify re-download works
+
+### 3. Update Install_and_Clean.ipynb with Cache Management
+**File**: `Lessons/Course_Tools/Install_and_Clean.ipynb`
+
+- [ ] Add new cache management section using check_cache_usage()
+- [ ] Add selective cleanup options using clear_model_cache()
+- [ ] Show cache directory structure and explain separation
+- [ ] Add cells for monitoring disk usage by cache type
+- [ ] Include warnings about what's safe to delete when
 
 ### 2. Update Notebook Installation Cells
 **Pattern to update in ALL lesson notebooks**:

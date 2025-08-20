@@ -607,8 +607,14 @@ def config_paths_keys(env_path=None, api_env_path=None):
     else:
         print("⚠️ HF_TOKEN not set or is placeholder. Set it in api_keys.env or the environment.")
 
-    # Print cache configuration info
-    print("\n📦 Model Cache Configuration:")
+    # Print version and cache configuration info
+    try:
+        import introdl
+        print(f"\n📦 introdl package version: {introdl.__version__}")
+    except:
+        pass
+    
+    print("\n📂 Model Cache Configuration:")
     print(f"   Student models: {models_path}")
     print(f"   Cached models: {cache_path}")
     print("   - PyTorch models: {}/hub".format(cache_path))
