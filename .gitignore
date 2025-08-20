@@ -25,6 +25,7 @@ extras/
 # Ignore Textbooks
 Textbooks/
 
-# Testing scripts (contain credentials)
+# Testing scripts and notes (contain credentials/tokens)
 test_in_cocalc.sh
 update_cocalc_test.sh
+Next_Session.md
