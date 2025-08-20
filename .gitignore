@@ -28,4 +28,33 @@ Textbooks/
 # Testing scripts and notes (contain credentials/tokens)
 test_in_cocalc.sh
 update_cocalc_test.sh
-Next_Session.md
+
+# Root-level markdown files (except README.md)
+/*.md
+!README.md
+!CLAUDE.md
+
+# Workspace directories (contain user data and models)
+home_workspace/
+cs_workspace/
+data/
+downloads/
+models/
+
+# Model and data files
+*.pt
+*.pth
+*.pkl
+*.h5
+*.safetensors
+*.bin
+
+# Dataset archives
+*.tar.gz
+*.zip
+*.tar
+
+# Temporary files
+*.tmp
+*.temp
+*.cache

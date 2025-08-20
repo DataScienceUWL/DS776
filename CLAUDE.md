@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT: Check TODO.md
+**Always check TODO.md first when starting a session.** This file contains the current work plan, priorities, and progress tracking for course development. Update task statuses as you complete them.
+
 ## Repository Overview
 
 This is a DS776 Deep Learning course repository containing instructional materials, homework assignments, and solutions. The repository uses PyTorch for deep learning implementations and includes materials for both computer vision (CNNs) and natural language processing (Transformers).
@@ -88,8 +91,18 @@ Located in `Lessons/Course_Tools/introdl/`, this package provides:
 - Solutions folders may contain trained model weights (`.pth`, `.pt` files)
 - Environment files (`.env`) contain API keys and configuration - handle with care
 
+## Workspace Structure (NEW)
+The repository now uses a workspace structure that mirrors student CoCalc environments:
+- `home_workspace/` - Synced storage (10GB limit in CoCalc)
+  - `data/` - Datasets
+  - `downloads/` - Cached pretrained models
+  - `models/` - Student-trained model checkpoints
+- `cs_workspace/` - Compute server local storage (not synced)
+- For local development, DS776_ROOT_DIR uses `home_workspace/` to simulate student experience
+
 ## Important Notes
 - This is an educational repository - prioritize clarity and learning objectives
 - When modifying notebooks, preserve markdown cells with instructional content
 - Test GPU/CPU compatibility when working with deep learning code
 - Respect the lesson numbering system when adding new content
+- Follow TODO.md for current development priorities and tasks
