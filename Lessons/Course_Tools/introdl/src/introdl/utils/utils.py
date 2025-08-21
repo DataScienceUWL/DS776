@@ -434,6 +434,51 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
 
     environment = detect_jupyter_environment()
     
+    # ========================================================================
+    # NEW: Check for Lesson/Homework directory and create local models folder
+    # ========================================================================
+    cwd = Path.cwd()
+    parent_dir = cwd.name  # Get the current directory name
+    local_models_dir = None
+    
+    # Check if we're in a Lesson or Homework folder
+    if parent_dir.startswith("Lesson_") or parent_dir.startswith("Homework_"):
+        try:
+            if parent_dir.startswith("Lesson_"):
+                # Extract lesson number from directory name
+                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_7_models"
+                parts = parent_dir.split("_")
+                if len(parts) >= 2 and parts[1].isdigit():
+                    lesson_num = str(int(parts[1]))  # Remove leading zeros
+                    local_models_dir = cwd / f"Lesson_{lesson_num}_models"
+                    
+            elif parent_dir.startswith("Homework_"):
+                # Extract homework number from directory name
+                # e.g., "Homework_07" -> "Homework_7_models"
+                parts = parent_dir.split("_")
+                if len(parts) >= 2:
+                    # Handle both "Homework_07" and "Homework_7" formats
+                    hw_num = parts[1].lstrip("0") if parts[1].isdigit() else parts[1]
+                    local_models_dir = cwd / f"Homework_{hw_num}_models"
+            
+            if local_models_dir:
+                # Create the directory if it doesn't exist
+                local_models_dir.mkdir(exist_ok=True)
+                
+                # Check current size of models directory
+                if local_models_dir.exists():
+                    try:
+                        size_mb = sum(f.stat().st_size for f in local_models_dir.rglob("*") if f.is_file()) / 1e6
+                        print(f"📁 Using local models directory: {local_models_dir.name} ({size_mb:.1f} MB)")
+                    except:
+                        print(f"📁 Using local models directory: {local_models_dir.name}")
+                else:
+                    print(f"📁 Created local models directory: {local_models_dir.name}")
+                    
+        except Exception as e:
+            # Silent fallback - don't confuse students with error messages
+            local_models_dir = None
+    
     # Handle local workspace mode (for testing student solutions)
     if local_workspace:
         print(f"📦 Local Workspace Mode - Creating workspace in notebook directory")
@@ -456,7 +501,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         # Create home_workspace in the notebook's directory
         base_path = notebook_dir / "home_workspace"
         data_path = base_path / "data"
-        models_path = base_path / "models"
+        
+        # Use local models directory if available, otherwise use home_workspace/models
+        if local_models_dir:
+            models_path = local_models_dir
+        else:
+            models_path = base_path / "models"
+            
         cache_path = base_path / "downloads"
         
         for path in [data_path, models_path, cache_path]:
@@ -495,7 +546,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         # Treat Lightning like Colab: Create local temp_workspace
         base_path = get_workspace_dir(environment)
         data_path = base_path / "data"
-        models_path = base_path / "models"
+        
+        # Use local models directory if available
+        if local_models_dir:
+            models_path = local_models_dir
+        else:
+            models_path = base_path / "models"
+            
         cache_path = base_path / "downloads"
 
         for path in [data_path, models_path, cache_path]:
@@ -547,7 +604,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             # Use course-relative paths for local development
             # Force override any existing env vars when DS776_ROOT_DIR is set
             data_path = base_dir / "data"
-            models_path = base_dir / "models"
+            
+            # Use local models directory if available
+            if local_models_dir:
+                models_path = local_models_dir
+            else:
+                models_path = base_dir / "models"
+                
             cache_path = base_dir / "downloads"
             
             # Update environment variables to match
@@ -557,7 +620,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         else:
             # Use home directory paths for students (or env file values if loaded)
             data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
-            models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+            
+            # Use local models directory if available
+            if local_models_dir:
+                models_path = local_models_dir
+            else:
+                models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+                
             cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
 
         for path in [data_path, models_path, cache_path]:

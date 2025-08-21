@@ -1,0 +1,15 @@
+Folder,Notebooks_MB,Python_MB,Data_MB,Media_MB,Other_MB,Total_MB
+Course_Tools,0.05,0.4,0.0,0.0,0.27,0.74
+Lesson_01_Neural_Networks,0.64,0.0,0.0,2.29,0.0,2.92
+Lesson_02_CNNs,2.77,0.01,0.0,0.0,0.0,2.78
+Lesson_03_Better_Training,7.77,0.0,0.0,0.23,0.0,8.0
+Lesson_04_Better_Networks,0.39,0.0,0.0,0.16,0.27,0.82
+Lesson_05_Transfer_Learning,4.01,0.0,0.0,0.0,0.0,4.01
+Lesson_06_Object_Detection,13.69,0.06,0.0,0.62,0.0,14.37
+Lesson_07_Transformers_Intro,0.14,0.0,0.0,1.23,0.0,1.37
+Lesson_08_Text_Classification,1.78,0.0,13.89,1.05,0.01,16.74
+Lesson_09_Transformer_Details,5.11,0.03,0.0,0.73,0.05,5.92
+Lesson_10_Named_Entity_Recognition,0.45,0.02,0.0,0.0,0.0,0.47
+Lesson_11_Text_Generation,1.19,0.02,0.0,0.57,0.02,1.81
+Lesson_12_Summarization,0.08,0.0,0.0,0.0,0.0,0.08
+Lesson_13_Project,0.01,0.0,0.0,0.0,0.0,0.01
