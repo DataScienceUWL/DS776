@@ -464,16 +464,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             if local_models_dir:
                 # Create the directory if it doesn't exist
                 local_models_dir.mkdir(exist_ok=True)
-                
-                # Check current size of models directory
-                if local_models_dir.exists():
-                    try:
-                        size_mb = sum(f.stat().st_size for f in local_models_dir.rglob("*") if f.is_file()) / 1e6
-                        print(f"📁 Using local models directory: {local_models_dir.name} ({size_mb:.1f} MB)")
-                    except:
-                        print(f"📁 Using local models directory: {local_models_dir.name}")
-                else:
-                    print(f"📁 Created local models directory: {local_models_dir.name}")
                     
         except Exception as e:
             # Silent fallback - don't confuse students with error messages
@@ -531,12 +521,12 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         os.environ["TQDM_NOTEBOOK"] = "true"
         
     else:
-        print(f"✅ Detected environment: {env_names.get(environment, 'Unknown')}")
-        
-        # Show course root if DS776_ROOT_DIR is set
+        # Simplified environment detection output
+        env_display = env_names.get(environment, 'Unknown')
         if 'DS776_ROOT_DIR' in os.environ:
-            print(f"   Using course root: {get_course_root()} (from DS776_ROOT_DIR)")
-        print()
+            print(f"✅ Environment: {env_display} | Course root: {get_course_root()}")
+        else:
+            print(f"✅ Environment: {env_display}")
 
     # -- Path setup --
     if local_workspace:
@@ -648,10 +638,11 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         # General cache location (used by some libraries as fallback)
         os.environ["XDG_CACHE_HOME"] = str(cache_path)
 
-    print(f"DATA_PATH={data_path}")
-    print(f"MODELS_PATH={models_path}")
-    print(f"CACHE_PATH={cache_path}")
-    print(f"✅ Workspace paths configured for {env_names.get(environment, 'Unknown')}\n")
+    # Condensed path output - single line when possible
+    if local_models_dir:
+        print(f"📁 Paths: DATA={data_path.name} | MODELS={local_models_dir.name} | CACHE={cache_path.name}")
+    else:
+        print(f"📁 Paths: DATA={data_path} | MODELS={models_path} | CACHE={cache_path}")
 
     # -- Load API keys --
     # First, capture which API keys/tokens are already in the environment
@@ -674,7 +665,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     if api_keys_file and api_keys_file.exists():
         # Load API keys but don't override existing environment variables
         load_dotenv(api_keys_file, override=False)
-        print(f"✅ Loaded API keys from: {api_keys_file}")
         
         # Report which keys were already in environment vs loaded from file
         new_keys = []
@@ -688,29 +678,23 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                     else:
                         new_keys.append(key)
         
-        if skipped_keys:
-            print(f"   Kept existing environment keys: {', '.join(sorted(skipped_keys))}")
-        if new_keys:
-            print(f"   Loaded new keys from file: {', '.join(sorted(new_keys))}")
-        print()
-    else:
-        print("⚠️ No api_keys.env file found.\n")
+        # Condensed API key loading message
+        if new_keys or skipped_keys:
+            total_keys = len(new_keys) + len(skipped_keys)
+            print(f"🔑 API keys: {total_keys} loaded from {api_keys_file.name}")
 
-    # -- List loaded API keys --
+    # -- List loaded API keys (condensed) --
     found_keys = [
         key for key in os.environ
         if (key.endswith("_API_KEY") or key.endswith("_TOKEN")) and os.environ[key] != "abcdefg"
     ]
     
     if found_keys:
-        print("🔐 API keys/tokens available (excluding placeholders):")
-        for key in sorted(found_keys):
-            # Show first 4 chars of the key value for verification (safe for API keys)
-            value_preview = os.environ[key][:4] + "..." if len(os.environ[key]) > 4 else "***"
-            print(f"  - {key}: {value_preview}")
-        print("")
-    else:
-        print("⚠️ No valid API keys or tokens found (excluding 'abcdefg' placeholders).\n")
+        # Just show count and names, not values
+        key_names = ', '.join(sorted(found_keys))
+        if len(key_names) > 50:  # Truncate if too long
+            key_names = ', '.join(sorted(found_keys)[:3]) + f"... ({len(found_keys)} total)"
+        print(f"🔐 Available: {key_names}")
 
     # -- Hugging Face login if token available --
     hf_token = os.getenv("HF_TOKEN")
@@ -729,25 +713,14 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 warnings.filterwarnings("ignore", category=UserWarning)
                 from huggingface_hub import login
                 login(token=hf_token, add_to_git_credential=False)
-            print("✅ Logged into Hugging Face Hub.")
-        except Exception as e:
-            print(f"[ERROR] Hugging Face login failed: {e}")
-    else:
-        print("⚠️ HF_TOKEN not set or is placeholder. Set it in api_keys.env or the environment.")
+            print("✅ HuggingFace Hub: Logged in")
 
-    # Print version and cache configuration info
+    # Print version (condensed)
     try:
         import introdl
-        print(f"\n📦 introdl package version: {introdl.__version__}")
+        print(f"📦 introdl v{introdl.__version__} ready\n")
     except:
         pass
-    
-    print("\n📂 Model Cache Configuration:")
-    print(f"   Student models: {models_path}")
-    print(f"   Cached models: {cache_path}")
-    print("   - PyTorch models: {}/hub".format(cache_path))
-    print("   - HuggingFace models: {}/huggingface".format(cache_path))
-    print("   💡 Run Install_and_Clean.ipynb to manage cache space")
     
     return {
         'MODELS_PATH': models_path,
