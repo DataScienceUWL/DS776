@@ -3,11 +3,26 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## IMPORTANT: Check TODO.md
-**Always check TODO.md first when starting a session.** This file contains the current work plan, priorities, and progress tracking for course development. Update task statuses as you complete them.
+**Always check Developer/Notes/TODO.md first when starting a session.** This file contains the current work plan, priorities, and progress tracking for course development. Update task statuses as you complete them.
 
 ## Repository Overview
 
-This is a DS776 Deep Learning course repository containing instructional materials, homework assignments, and solutions. The repository uses PyTorch for deep learning implementations and includes materials for both computer vision (CNNs) and natural language processing (Transformers).
+This is a DS776 Deep Learning course repository containing instructional materials, homework assignments, and instructor resources. The repository uses PyTorch for deep learning implementations and includes materials for both computer vision (CNNs) and natural language processing (Transformers).
+
+### Repository Organization
+The repository is organized with a clear separation between distributed course materials and development/instructor resources:
+
+**Distributed Materials (in repo):**
+- **Homework/** - Student assignments (distributed to students)
+- **Lessons/** - Course content and instructional materials (distributed to students)
+
+**Development/Instructor Resources (not distributed):**
+- **Developer/** - All instructor and development resources
+  - **Scripts/** - Analysis scripts, generators, utilities (e.g., generate_homework_utilities.py)
+  - **Notes/** - Development notes, TODO.md, testing documentation
+  - **Solutions/** - Complete homework solutions (instructor reference only)
+  - **Ashley/** - Student solution examples from previous semester
+  - **Textbooks/** - Reference materials and textbook PDFs
 
 ## Common Development Commands
 
@@ -45,16 +60,7 @@ The repository follows a lesson-based structure:
   
 - **Homework/** - Student assignments corresponding to lessons
   - Each homework folder contains Jupyter notebooks and supporting scripts
-  
-- **Solutions/** - Complete solutions to homework assignments
-  - May include additional helper scripts and model checkpoints
-
-- **Textbooks/** - Reference materials
-  
-- **extras/** - Additional tools and applications including:
-  - Grading applications using Streamlit
-  - Feedback applications for student assessment
-  - OpenRouter API management tools
+  - Each folder includes Homework_XX_Utilities.ipynb for storage management
 
 ### Key Dependencies
 The course relies on the following main frameworks (from `introdl/pyproject.toml`):
@@ -88,7 +94,6 @@ Located in `Lessons/Course_Tools/introdl/`, this package provides:
 ### Working with Course Materials
 - Notebooks often include embedded videos accessed through the introdl package
 - Many notebooks depend on helper modules in the same directory
-- Solutions folders may contain trained model weights (`.pth`, `.pt` files)
 - Environment files (`.env`) contain API keys and configuration - handle with care
 
 ## Workspace Structure (NEW)
@@ -105,7 +110,16 @@ The repository now uses a workspace structure that mirrors student CoCalc enviro
 - When modifying notebooks, preserve markdown cells with instructional content
 - Test GPU/CPU compatibility when working with deep learning code
 - Respect the lesson numbering system when adding new content
-- Follow TODO.md for current development priorities and tasks
+- Follow Developer/Notes/TODO.md for current development priorities and tasks
+
+## File Storage Guidelines
+**When creating new files, follow this structure:**
+- **Homework/** and **Lessons/** - Only course materials that students will use
+- **Developer/Scripts/** - Any analysis scripts, generators, or utility scripts
+- **Developer/Notes/** - Documentation, TODO lists, testing notes, CSVs from analysis
+- **Developer/Solutions/** - Complete homework solutions (instructor reference)
+- **Developer/Textbooks/** - Reference PDFs and textbook materials
+- Never place development files in the root directory
 
 ## Using Gemini CLI for Large Codebase Analysis
 

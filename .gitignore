@@ -16,9 +16,9 @@ __pycache__/
 Solutions*.ipynb_checkpoints
 Solutions*.ipynb
 
-# Ignore Solutions Folder
-Solutions/
-Ashley/
+# Developer folder - contains instructor resources, not distributed
+Developer/Solutions/
+Developer/Ashley/
 
 # Ignore extras folder
 extras/
@@ -30,10 +30,10 @@ Textbooks/
 test_in_cocalc.sh
 update_cocalc_test.sh
 
-# Root-level markdown files (except README.md)
+# Root-level markdown files (except README.md) 
 /*.md
 !README.md
-!CLAUDE.md
+CLAUDE.md
 
 # Workspace directories (contain user data and models)
 home_workspace/

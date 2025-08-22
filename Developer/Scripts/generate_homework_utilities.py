@@ -114,10 +114,11 @@ def create_all_hw_util_notebooks(template_path, base_output_dir):
 
 def main():
     """Main function to generate all homework utility notebooks."""
-    # Get paths
+    # Get paths - script is now in Developer/Scripts
     script_dir = Path(__file__).parent
+    project_root = script_dir.parent.parent  # Go up to project root
     template_path = script_dir / "HW_Utilities_Template.ipynb"
-    base_output_dir = script_dir  # The Homework directory
+    base_output_dir = project_root / "Homework"  # The Homework directory
     
     # Generate all notebooks
     success = create_all_hw_util_notebooks(template_path, base_output_dir)
