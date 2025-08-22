@@ -511,7 +511,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         
         # Configure caching locations
         os.environ["TORCH_HOME"] = str(cache_path)
-        os.environ["TORCH_HUB"] = str(cache_path / "hub")
         os.environ["HF_HOME"] = str(cache_path / "huggingface")
         os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
         os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
@@ -555,7 +554,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         
         # PyTorch/torchvision pretrained models
         os.environ["TORCH_HOME"] = str(cache_path)
-        os.environ["TORCH_HUB"] = str(cache_path / "hub")  # For torch.hub models
         
         # HuggingFace models and datasets
         os.environ["HF_HOME"] = str(cache_path / "huggingface")
@@ -653,7 +651,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         
         # PyTorch/torchvision pretrained models
         os.environ["TORCH_HOME"] = str(cache_path)
-        os.environ["TORCH_HUB"] = str(cache_path / "hub")  # For torch.hub models
         
         # HuggingFace models and datasets
         os.environ["HF_HOME"] = str(cache_path / "huggingface")
