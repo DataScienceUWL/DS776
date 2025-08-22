@@ -11,6 +11,8 @@ src/introdl/idlmam/idlmam.py
 src/introdl/nlp/__init__.py
 src/introdl/nlp/nlp.py
 src/introdl/utils/__init__.py
+src/introdl/utils/path_utils.py
+src/introdl/utils/storage_utils.py
 src/introdl/utils/utils.py
 src/introdl/visul/__init__.py
 src/introdl/visul/visul.py

@@ -24,6 +24,19 @@ from .path_utils import (
     resolve_api_keys_file
 )
 
+# Import storage utilities
+from .storage_utils import (
+    get_folder_size,
+    format_size,
+    get_comprehensive_storage_report,
+    display_storage_report,
+    cleanup_old_cache,
+    delete_lesson_or_homework_models,
+    delete_current_lesson_models,
+    export_homework_html_interactive,
+    zip_homework_models
+)
+
 __all__ = [
     "detect_jupyter_environment",
     "get_device",
@@ -46,5 +59,15 @@ __all__ = [
     "get_course_tools_dir",
     "get_workspace_dir",
     "resolve_env_file",
-    "resolve_api_keys_file"
+    "resolve_api_keys_file",
+    # Storage utilities
+    "get_folder_size",
+    "format_size",
+    "get_comprehensive_storage_report",
+    "display_storage_report",
+    "cleanup_old_cache",
+    "delete_lesson_or_homework_models",
+    "delete_current_lesson_models",
+    "export_homework_html_interactive",
+    "zip_homework_models"
 ]

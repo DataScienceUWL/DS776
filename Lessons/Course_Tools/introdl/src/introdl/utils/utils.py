@@ -446,19 +446,18 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         try:
             if parent_dir.startswith("Lesson_"):
                 # Extract lesson number from directory name
-                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_7_models"
+                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_07_models"
                 parts = parent_dir.split("_")
                 if len(parts) >= 2 and parts[1].isdigit():
-                    lesson_num = str(int(parts[1]))  # Remove leading zeros
+                    lesson_num = parts[1]  # Keep zero-padding
                     local_models_dir = cwd / f"Lesson_{lesson_num}_models"
                     
             elif parent_dir.startswith("Homework_"):
                 # Extract homework number from directory name
-                # e.g., "Homework_07" -> "Homework_7_models"
+                # e.g., "Homework_07" -> "Homework_07_models"
                 parts = parent_dir.split("_")
-                if len(parts) >= 2:
-                    # Handle both "Homework_07" and "Homework_7" formats
-                    hw_num = parts[1].lstrip("0") if parts[1].isdigit() else parts[1]
+                if len(parts) >= 2 and parts[1].isdigit():
+                    hw_num = parts[1]  # Keep zero-padding
                     local_models_dir = cwd / f"Homework_{hw_num}_models"
             
             if local_models_dir:
@@ -571,53 +570,80 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         os.environ["TQDM_NOTEBOOK"] = "true"
 
     else:
-        # Determine base directory for paths
-        # If DS776_ROOT_DIR is set, use course root, otherwise use home directory
+        # Determine paths based on environment (CoCalc base vs compute server vs local)
+        home_dir = Path.home()
+        cs_workspace = home_dir / "cs_workspace"
+        home_workspace = home_dir / "home_workspace"
+        
+        # Check if we're on a CoCalc compute server (has cs_workspace)
+        on_compute_server = cs_workspace.exists() and environment == "cocalc_compute_server"
+        
+        # Check if DS776_ROOT_DIR is set (local development)
         if 'DS776_ROOT_DIR' in os.environ:
+            # Local development mode - mirror CoCalc structure
             base_dir = get_course_root()
-            print(f"📁 Using course root for workspace: {base_dir}")
-        else:
-            base_dir = Path.home()
-            print(f"📁 Using home directory for workspace: {base_dir}")
-        
-        # Check for environment file but don't rely on it for DS776_ROOT_DIR case
-        env_file = resolve_env_file(env_path, environment)
-        
-        # Only load env file if DS776_ROOT_DIR is NOT set
-        # (when DS776_ROOT_DIR is set, we want to use course-relative paths)
-        if 'DS776_ROOT_DIR' not in os.environ and env_file.exists():
-            load_dotenv(env_file, override=False)
-            print(f"Loaded workspace paths from: {env_file}")
-        
-        # Set paths based on whether DS776_ROOT_DIR is available
-        if 'DS776_ROOT_DIR' in os.environ:
-            # Use course-relative paths for local development
-            # Force override any existing env vars when DS776_ROOT_DIR is set
-            data_path = base_dir / "data"
+            home_workspace = base_dir / "home_workspace"
+            home_workspace.mkdir(parents=True, exist_ok=True)
             
-            # Use local models directory if available
-            if local_models_dir:
-                models_path = local_models_dir
-            else:
-                models_path = base_dir / "models"
-                
-            cache_path = base_dir / "downloads"
+            data_path = home_workspace / "data"
+            cache_path = home_workspace / "downloads"
             
-            # Update environment variables to match
+            print(f"📍 Environment: {env_names.get(environment, 'Unknown')} (Local Development)")
+            print(f"   Using workspace: {home_workspace}")
+            
+            # Update environment variables
             os.environ["DATA_PATH"] = str(data_path)
-            os.environ["MODELS_PATH"] = str(models_path)
             os.environ["CACHE_PATH"] = str(cache_path)
-        else:
-            # Use home directory paths for students (or env file values if loaded)
-            data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
             
-            # Use local models directory if available
-            if local_models_dir:
-                models_path = local_models_dir
+        elif environment in ["cocalc", "cocalc_compute_server"]:
+            # CoCalc environments
+            if on_compute_server:
+                # On compute server: use cs_workspace for cache, home_workspace for data
+                data_path = home_workspace / "data"
+                cache_path = cs_workspace / "downloads"  # Local to compute server, not synced
+                
+                print(f"📍 Environment: CoCalc Compute Server")
+                print(f"   Data (synced): {data_path}")
+                print(f"   Cache (local): {cache_path}")
+            else:
+                # Base CoCalc: everything in home_workspace
+                data_path = home_workspace / "data"
+                cache_path = home_workspace / "downloads"
+                
+                print(f"📍 Environment: CoCalc Base Server")
+                print(f"   All paths in synced storage: {home_workspace}")
+                print(f"   ⚠️ Warning: 10GB limit for home_workspace")
+                
+            # Update environment variables
+            os.environ["DATA_PATH"] = str(data_path)
+            os.environ["CACHE_PATH"] = str(cache_path)
+            
+        else:
+            # Other environments (VSCode, unknown, etc.)
+            # Check for environment file
+            env_file = resolve_env_file(env_path, environment)
+            
+            if env_file.exists():
+                load_dotenv(env_file, override=False)
+                print(f"   Loaded config from: {env_file}")
+            
+            # Use environment variables or defaults
+            data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+            cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+            
+            print(f"📍 Environment: {env_names.get(environment, 'Unknown')}")
+        
+        # Models always go in local Lesson/Homework folder if available
+        if local_models_dir:
+            models_path = local_models_dir
+            os.environ["MODELS_PATH"] = str(models_path)
+        else:
+            # Fallback to environment variable or default
+            if 'DS776_ROOT_DIR' in os.environ:
+                models_path = get_course_root() / "home_workspace" / "models"
             else:
                 models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
-                
-            cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+            os.environ["MODELS_PATH"] = str(models_path)
 
         for path in [data_path, models_path, cache_path]:
             path.mkdir(parents=True, exist_ok=True)
@@ -638,11 +664,22 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         # General cache location (used by some libraries as fallback)
         os.environ["XDG_CACHE_HOME"] = str(cache_path)
 
-    # Condensed path output - single line when possible
+    # More verbose path output for clarity
+    print(f"\n📂 Storage Configuration:")
+    print(f"   DATA_PATH: {data_path}")
     if local_models_dir:
-        print(f"📁 Paths: DATA={data_path.name} | MODELS={local_models_dir.name} | CACHE={cache_path.name}")
+        print(f"   MODELS_PATH: {models_path} (local to this notebook)")
     else:
-        print(f"📁 Paths: DATA={data_path} | MODELS={models_path} | CACHE={cache_path}")
+        print(f"   MODELS_PATH: {models_path}")
+    print(f"   CACHE_PATH: {cache_path}")
+    
+    # Add helpful context based on environment
+    if environment == "cocalc_compute_server":
+        print(f"\n   ℹ️ Cache is local to compute server (not synced)")
+        print(f"   ℹ️ Data & models are in synced storage")
+    elif environment == "cocalc":
+        print(f"\n   ⚠️ All storage counts toward 10GB home_workspace limit")
+        print(f"   💡 Use compute servers for large model training")
 
     # -- Load API keys --
     # First, capture which API keys/tokens are already in the environment
@@ -714,6 +751,9 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 from huggingface_hub import login
                 login(token=hf_token, add_to_git_credential=False)
             print("✅ HuggingFace Hub: Logged in")
+        except Exception as e:
+            # Silently fail if HF login doesn't work
+            pass
 
     # Print version (condensed)
     try:
@@ -1236,85 +1276,6 @@ def _clean_invalid_outputs(notebook_path):
 
     with open(notebook_path, "w", encoding="utf-8") as f:
         nbformat.write(nb, f)
-
-# def convert_nb_to_html(output_filename="converted.html", notebook_path=None, template="lab"):
-#     """
-#     Convert a notebook to HTML using the specified nbconvert template.
-
-#     Parameters:
-#         output_filename (str or Path): Name or path of the resulting HTML file.
-#         notebook_path (str or Path): Path to the notebook to convert. If None, uses most recent .ipynb in cwd.
-#         template (str): nbconvert template to use ("lab" or "classic"). Defaults to "lab".
-
-#     Notes:
-#         - Cleans up Colab-specific metadata (e.g., 'errorDetails') and broken widget metadata.
-#         - Automatically falls back to 'classic' template if 'lab' fails.
-#         - Final HTML is written to output_filename (supports Google Drive paths).
-#     """
-
-#     # If no notebook path is given, use most recent .ipynb in current directory
-#     if notebook_path is None:
-#         candidates = list(Path.cwd().glob("*.ipynb"))
-#         if not candidates:
-#             raise FileNotFoundError("No .ipynb files found in current directory.")
-#         notebook_path = max(candidates, key=lambda f: f.stat().st_mtime)
-
-#     output_filename = Path(output_filename)
-#     if not output_filename.name.endswith(".html"):
-#         output_filename = output_filename.with_suffix(".html")
-
-#     notebook_path = Path(notebook_path).resolve()
-#     output_dir = output_filename.parent.resolve()
-#     output_name = output_filename.stem
-
-#     with tempfile.TemporaryDirectory() as tmpdir:
-#         tmp_path = Path(tmpdir) / notebook_path.name
-#         shutil.copy2(notebook_path, tmp_path)
-#         print(f"[INFO] Temporary copy created: {tmp_path}")
-
-#         # 🧼 Clean Colab errorDetails and invalid widget metadata
-#         try:
-#             nb = nbformat.read(tmp_path, as_version=4)
-#             for cell in nb.cells:
-#                 if "outputs" in cell:
-#                     for output in cell["outputs"]:
-#                         if isinstance(output, dict):
-#                             if "errorDetails" in output:
-#                                 del output["errorDetails"]
-#                             # Remove broken widget views that trigger KeyError
-#                             if "data" in output and "application/vnd.jupyter.widget-view+json" in output["data"]:
-#                                 output["data"].pop("application/vnd.jupyter.widget-view+json", None)
-#             if "metadata" in nb and "widgets" in nb["metadata"]:
-#                 del nb["metadata"]["widgets"]
-#             nbformat.write(nb, tmp_path)
-#         except Exception as e:
-#             print(f"[WARNING] Failed to clean notebook metadata: {e}")
-
-#         def run_nbconvert(tmpl):
-#             return subprocess.run(
-#                 [
-#                     "jupyter", "nbconvert",
-#                     "--to", "html",
-#                     "--template", tmpl,
-#                     "--output", output_name,
-#                     "--output-dir", str(output_dir),
-#                     str(tmp_path)
-#                 ],
-#                 stdout=subprocess.PIPE,
-#                 stderr=subprocess.PIPE,
-#                 text=True
-#             )
-
-#         # 🧪 Try nbconvert with the specified template, fallback to classic if it fails
-#         result = run_nbconvert(template)
-#         if result.returncode != 0:
-#             print(f"[WARNING] nbconvert with template '{template}' failed. Retrying with 'classic'...")
-#             result = run_nbconvert("classic")
-
-#         if result.returncode == 0:
-#             print(f"[SUCCESS] HTML export complete: {output_dir / output_filename.name}")
-#         else:
-#             print("[ERROR] nbconvert failed:\n", result.stderr)
 
 def convert_nb_to_html(output_filename="converted.html", notebook_path=None, template="lab"):
     """
