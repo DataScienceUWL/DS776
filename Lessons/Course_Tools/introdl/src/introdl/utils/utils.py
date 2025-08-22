@@ -598,12 +598,12 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         elif environment in ["cocalc", "cocalc_compute_server"]:
             # CoCalc environments
             if on_compute_server:
-                # On compute server: use cs_workspace for cache, home_workspace for data
-                data_path = home_workspace / "data"
+                # On compute server: use cs_workspace for both data and cache (local, not synced)
+                data_path = cs_workspace / "data"
                 cache_path = cs_workspace / "downloads"  # Local to compute server, not synced
                 
                 print(f"📍 Environment: CoCalc Compute Server")
-                print(f"   Data (synced): {data_path}")
+                print(f"   Data (local): {data_path}")
                 print(f"   Cache (local): {cache_path}")
             else:
                 # Base CoCalc: everything in home_workspace
@@ -675,8 +675,8 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     
     # Add helpful context based on environment
     if environment == "cocalc_compute_server":
-        print(f"\n   ℹ️ Cache is local to compute server (not synced)")
-        print(f"   ℹ️ Data & models are in synced storage")
+        print(f"\n   ℹ️ Data & cache are local to this compute server (not synced)")
+        print(f"   ℹ️ Models in lesson/homework folders are synced")
     elif environment == "cocalc":
         print(f"\n   ⚠️ All storage counts toward 10GB home_workspace limit")
         print(f"   💡 Use compute servers for large model training")

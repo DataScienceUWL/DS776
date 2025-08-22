@@ -104,8 +104,9 @@ def resolve_api_keys_file(api_env_path=None):
     
     Priority order:
     1. Explicit api_env_path if provided
-    2. ~/api_keys.env (user's home directory)
-    3. home_workspace/api_keys.env (student editable, synced)
+    2. DS776_ROOT_DIR/home_workspace/api_keys.env (for local development)
+    3. ~/api_keys.env (user's home directory)
+    4. ~/home_workspace/api_keys.env (CoCalc student editable, synced)
     
     Args:
         api_env_path: Optional explicit path to API keys file
@@ -113,15 +114,24 @@ def resolve_api_keys_file(api_env_path=None):
     Returns:
         Path or None: The resolved API keys file path if it exists
     """
+    import os
+    
     if api_env_path:
         path = Path(api_env_path).expanduser().resolve()
         return path if path.exists() else None
     
     # Check standard locations in priority order
-    locations = [
-        Path.home() / "api_keys.env",  # Highest priority
-        get_course_root() / "home_workspace" / "api_keys.env",  # Student editable
-    ]
+    locations = []
+    
+    # First check DS776_ROOT_DIR/home_workspace if in local development
+    if 'DS776_ROOT_DIR' in os.environ:
+        locations.append(get_course_root() / "home_workspace" / "api_keys.env")
+    
+    # Then check home directory
+    locations.append(Path.home() / "api_keys.env")
+    
+    # Finally check ~/home_workspace (for CoCalc)
+    locations.append(Path.home() / "home_workspace" / "api_keys.env")
     
     for location in locations:
         if location.exists():
