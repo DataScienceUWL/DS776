@@ -22,7 +22,11 @@
 - [x] Fixed zip naming to use Homework_##_models pattern
 
 ### Next Session Priority
-- [ ] **TEST HOMEWORK UTILITY NOTEBOOKS IN ALL ENVIRONMENTS**
+- [ ] **TEST COURSE TOOLS NOTEBOOKS IN ALL ENVIRONMENTS**
+  - [ ] Test Course_Setup.ipynb functionality
+  - [ ] Test Install_Course_Package.ipynb
+  - [ ] Test Clean_and_Free_Space.ipynb
+  - [ ] Verify API key priority system works correctly
   - [ ] Test in local development environment
   - [ ] Test in CoCalc base environment (when available)
   - [ ] Test on CoCalc compute server (when available)
@@ -97,20 +101,43 @@
   - [ ] Add to utility notebooks (not main homework)
   - [ ] Document usage for students
 
-### 2.2 Utility Notebooks & Tools
-- [ ] Finalize Install_and_Clean.ipynb with new cache management
-- [ ] Create Checkpoint_Manager.ipynb with:
-  - [ ] Storage usage visualization
-  - [ ] Selective checkpoint sync
-  - [ ] Homework-aware cleanup
-  - [ ] Compression utilities
+### 2.2 Course Tools Notebooks & Setup
+- [x] **Course_Setup.ipynb** - Initial student setup notebook:
+  - [x] Install introdl package
+  - [x] Create home_workspace folder structure
+  - [x] Copy api_keys.env template to home_workspace
+  - [x] Verify installation and show success message
+  - [x] Place in Lessons/Course_Tools/
+
+- [x] **Install_Course_Package.ipynb** - Package installation only:
+  - [x] Rename from Install_and_Clean.ipynb
+  - [x] Focus solely on introdl package installation
+  - [x] Include package version verification
+  
+- [x] **Clean_and_Free_Space.ipynb** - Global storage management:
+  - [x] Similar to homework utilities but course-wide
+  - [x] Show storage across all lessons/homework
+  - [x] Clean old cache files globally
+  - [x] Option to delete all lesson models
+  - [x] Emergency cleanup options
+  
+- [x] **API Key Management**:
+  - [x] Create api_keys.env template in Course_Tools
+  - [x] Update config_paths_keys() priority:
+    1. Environment variables (highest priority)
+    2. ~/api_keys.env
+    3. home_workspace/api_keys.env (student editable, synced)
+  - [x] Ignore blank values and "abcdefg" placeholder values
+  - [x] Document for students to edit home_workspace/api_keys.env
+
 - [ ] Update introdl package:
-  - [ ] **Condense config_paths_keys() output to reduce clutter**
+  - [x] **Condense config_paths_keys() output to reduce clutter**
+  - [x] Implement new API key priority system
   - [ ] Audit and remove unused functions from idlmam.py
   - [ ] Add checkpoint_management.py module
   - [ ] Implement smart checkpoint rotation in train_network()
   - [ ] Add homework detection utilities
-  - [ ] Version bump to 1.4
+  - [x] Version bump to 1.4
 
 ### 2.2 Lessons 1-3 Updates
 - [ ] **Lesson 1**: 

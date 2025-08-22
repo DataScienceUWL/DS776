@@ -681,16 +681,24 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         print(f"\n   ⚠️ All storage counts toward 10GB home_workspace limit")
         print(f"   💡 Use compute servers for large model training")
 
-    # -- Load API keys --
+    # -- Load API keys with priority system --
+    # Priority: 1) Environment variables, 2) ~/api_keys.env, 3) home_workspace/api_keys.env
+    
     # First, capture which API keys/tokens are already in the environment
     existing_keys = {}
     key_patterns = ["_API_KEY", "_TOKEN"]
+    placeholder_values = ["abcdefg", "", None, "your_", "xxx"]  # Common placeholder patterns
+    
     for key in os.environ:
         for pattern in key_patterns:
             if pattern in key:
-                existing_keys[key] = os.environ[key]
+                val = os.environ[key]
+                # Check if it's a real value (not placeholder)
+                is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                if not is_placeholder and val:
+                    existing_keys[key] = val
     
-    # Find the API keys file using path_utils
+    # Find the API keys file using path_utils (implements priority)
     api_keys_file = resolve_api_keys_file(api_env_path)
     
     # Special handling for Colab - check Google Drive location
@@ -701,30 +709,48 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     
     if api_keys_file and api_keys_file.exists():
         # Load API keys but don't override existing environment variables
+        # This respects the priority: env vars > file values
         load_dotenv(api_keys_file, override=False)
         
-        # Report which keys were already in environment vs loaded from file
-        new_keys = []
-        skipped_keys = []
+        # Clean up any placeholder values that got loaded
+        for key in list(os.environ.keys()):
+            for pattern in key_patterns:
+                if pattern in key:
+                    val = os.environ[key]
+                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                    if is_placeholder:
+                        # Remove placeholder values
+                        del os.environ[key]
+        
+        # Count valid keys loaded
+        valid_keys = 0
         for key in os.environ:
             for pattern in key_patterns:
-                if pattern in key and os.environ[key] != "abcdefg":
-                    if key in existing_keys:
-                        if existing_keys[key] != "abcdefg":
-                            skipped_keys.append(key)
-                    else:
-                        new_keys.append(key)
+                if pattern in key:
+                    val = os.environ[key]
+                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                    if not is_placeholder and val:
+                        valid_keys += 1
         
         # Condensed API key loading message
-        if new_keys or skipped_keys:
-            total_keys = len(new_keys) + len(skipped_keys)
-            print(f"🔑 API keys: {total_keys} loaded from {api_keys_file.name}")
+        if valid_keys > 0:
+            # Show where keys were loaded from
+            if "home_workspace" in str(api_keys_file):
+                location = "home_workspace/api_keys.env"
+            elif api_keys_file.parent == Path.home():
+                location = "~/api_keys.env"
+            else:
+                location = api_keys_file.name
+            print(f"🔑 API keys: {valid_keys} loaded from {location}")
 
     # -- List loaded API keys (condensed) --
-    found_keys = [
-        key for key in os.environ
-        if (key.endswith("_API_KEY") or key.endswith("_TOKEN")) and os.environ[key] != "abcdefg"
-    ]
+    found_keys = []
+    for key in os.environ:
+        if key.endswith("_API_KEY") or key.endswith("_TOKEN"):
+            val = os.environ[key]
+            is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+            if not is_placeholder and val:
+                found_keys.append(key)
     
     if found_keys:
         # Just show count and names, not values
@@ -735,7 +761,8 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
 
     # -- Hugging Face login if token available --
     hf_token = os.getenv("HF_TOKEN")
-    if hf_token and hf_token != "abcdefg":
+    is_hf_placeholder = any(placeholder in str(hf_token).lower() for placeholder in placeholder_values) if hf_token else True
+    if hf_token and not is_hf_placeholder:
         try:
             import logging
             import warnings

@@ -102,6 +102,11 @@ def resolve_api_keys_file(api_env_path=None):
     """
     Resolve the API keys environment file path.
     
+    Priority order:
+    1. Explicit api_env_path if provided
+    2. ~/api_keys.env (user's home directory)
+    3. home_workspace/api_keys.env (student editable, synced)
+    
     Args:
         api_env_path: Optional explicit path to API keys file
         
@@ -112,10 +117,10 @@ def resolve_api_keys_file(api_env_path=None):
         path = Path(api_env_path).expanduser().resolve()
         return path if path.exists() else None
     
-    # Check standard locations
+    # Check standard locations in priority order
     locations = [
-        Path.home() / "api_keys.env",
-        get_course_tools_dir() / "api_keys.env",
+        Path.home() / "api_keys.env",  # Highest priority
+        get_course_root() / "home_workspace" / "api_keys.env",  # Student editable
     ]
     
     for location in locations:
