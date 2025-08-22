@@ -22,20 +22,18 @@
 - [x] Fixed zip naming to use Homework_##_models pattern
 
 ### Next Session Priority
-- [ ] **TEST COURSE TOOLS NOTEBOOKS IN ALL ENVIRONMENTS**
-  - [ ] Test Course_Setup.ipynb functionality
-  - [ ] Test Install_Course_Package.ipynb
-  - [ ] Test Clean_and_Free_Space.ipynb
-  - [ ] Verify API key priority system works correctly
-  - [ ] Test in local development environment
-  - [ ] Test in CoCalc base environment (when available)
-  - [ ] Test on CoCalc compute server (when available)
-  - [ ] Verify all functions work correctly:
-    - Storage report with environment detection
-    - Cache cleanup (dry run and actual)
-    - Lesson models deletion
-    - Zip models (both formats: Homework_1_models and Homework_01_models)
-    - HTML export (two-step process)
+- [ ] **Update Lessons 1-3 for course launch**
+  - [ ] Add "Getting Started" section to Lesson 1
+  - [ ] Update import patterns (remove installation cells)
+  - [ ] Add storage management overview
+  - [ ] Test with new storage paths
+- [ ] **Update Homework 1-3 with solutions**
+  - [ ] Update import patterns
+  - [ ] Adjust point distributions
+  - [ ] Complete solutions using student reference
+- [ ] **Create launch documentation**
+  - [ ] STUDENT_QUICKSTART.md
+  - [ ] storage_tips.md for students
 
 ### Storage Analysis Results
 - Total storage across all HW: 34.9 GB
@@ -109,10 +107,11 @@
   - [x] Verify installation and show success message
   - [x] Place in Lessons/Course_Tools/
 
-- [x] **Install_Course_Package.ipynb** - Package installation only:
-  - [x] Rename from Install_and_Clean.ipynb
-  - [x] Focus solely on introdl package installation
-  - [x] Include package version verification
+- [x] **setup_course.sh** - Bash script for batch setup:
+  - [x] Install introdl package
+  - [x] Create workspace directories
+  - [x] Set up API keys template
+  - [x] Verify installation
   
 - [x] **Clean_and_Free_Space.ipynb** - Global storage management:
   - [x] Similar to homework utilities but course-wide
@@ -137,7 +136,9 @@
   - [ ] Add checkpoint_management.py module
   - [ ] Implement smart checkpoint rotation in train_network()
   - [ ] Add homework detection utilities
-  - [x] Version bump to 1.4
+  - [x] Version bump to 1.4.1
+  - [x] Remove deprecated TORCH_HUB variable
+  - [x] Fix cs_workspace data path for compute servers
 
 ### 2.2 Lessons 1-3 Updates
 - [ ] **Lesson 1**: 
