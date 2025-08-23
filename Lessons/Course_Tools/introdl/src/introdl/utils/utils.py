@@ -372,7 +372,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             
             # If DS776_ROOT_DIR is set (local development), shorten the path
             if 'DS776_ROOT_DIR' in os.environ:
-                root_dir = str(Path(os.environ['DS776_ROOT_DIR']) / "DS776")
+                root_dir = os.environ['DS776_ROOT_DIR']
                 # Replace the root directory portion with <DS776_ROOT_DIR>
                 if path_str.startswith(root_dir):
                     path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
@@ -474,7 +474,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 
                 # If DS776_ROOT_DIR is set (local development), shorten the path
                 if 'DS776_ROOT_DIR' in os.environ:
-                    root_dir = str(Path(os.environ['DS776_ROOT_DIR']) / "DS776")
+                    root_dir = os.environ['DS776_ROOT_DIR']
                     # Replace the root directory portion with <DS776_ROOT_DIR>
                     if path_str.startswith(root_dir):
                         path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
