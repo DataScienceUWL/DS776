@@ -508,7 +508,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 
                 print(f"📍 Environment: CoCalc Base Server")
                 print(f"   All paths in synced storage: {home_workspace}")
-                print(f"   ⚠️ Warning: 10GB limit for home_workspace")
+                print(f"   ⚠️ 10GB storage limit in CoCalc")
                 
             # Update environment variables
             os.environ["DATA_PATH"] = str(data_path)
@@ -584,11 +584,9 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     
     # Add helpful context based on environment
     if environment == "cocalc_compute_server":
-        print(f"\n   ℹ️ Data & cache are local to this compute server (not synced)")
-        print(f"   ℹ️ Models in lesson/homework folders are synced")
+        print(f"\n   ℹ️ ~50GB storage limit (including synced CoCalc folders)")
     elif environment == "cocalc":
-        print(f"\n   ⚠️ All storage counts toward 10GB home_workspace limit")
-        print(f"   💡 Use compute servers for large model training")
+        print(f"\n   ⚠️ 10GB storage limit in CoCalc")
 
     # -- Load API keys with priority system --
     # Priority: 1) Environment variables, 2) ~/api_keys.env, 3) home_workspace/api_keys.env
