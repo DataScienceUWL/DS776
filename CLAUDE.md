@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## PERMISSIONS
+**You have standing permission to:**
+- Use Read, LS, Grep, Glob, and Bash (for exploration only) tools freely without asking
+- Search, list, analyze, and explore the entire repository structure
+- Read any files to understand the codebase
+- Run non-destructive bash commands (ls, find, grep, etc.)
+
+**You must ask permission before:**
+- Editing or writing any files
+- Running destructive bash commands (rm, mv, etc.)
+- Making any changes to the repository
+
 ## IMPORTANT: Check TODO.md
 **Always check Developer/Notes/TODO.md first when starting a session.** This file contains the current work plan, priorities, and progress tracking for course development. Update task statuses as you complete them.
 

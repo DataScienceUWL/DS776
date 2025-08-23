@@ -21,19 +21,69 @@
 - [x] Added clear explanations of cached/pretrained vs user-trained models
 - [x] Fixed zip naming to use Homework_##_models pattern
 
-### Next Session Priority
-- [ ] **Update Lessons 1-3 for course launch**
-  - [ ] Add "Getting Started" section to Lesson 1
-  - [ ] Update import patterns (remove installation cells)
-  - [ ] Add storage management overview
-  - [ ] Test with new storage paths
-- [ ] **Update Homework 1-3 with solutions**
-  - [ ] Update import patterns
-  - [ ] Adjust point distributions
-  - [ ] Complete solutions using student reference
-- [ ] **Create launch documentation**
-  - [ ] STUDENT_QUICKSTART.md
-  - [ ] storage_tips.md for students
+### Session Completed (Aug 23, 2025)
+- [x] Created Course Tools notebooks (Course_Setup.ipynb, Clean_and_Free_Space.ipynb)
+- [x] Implemented API key priority system (env vars > ~/api_keys.env > home_workspace/api_keys.env)
+- [x] Fixed TORCH_HUB deprecation and cs_workspace data path
+- [x] Added Reflection questions to Homework_02
+- [x] Analyzed helper scripts and created recommendations (see Developer/Notes/helper_script_recommendations.md)
+
+### Next Session Priority - HOMEWORK STANDARDIZATION
+
+#### 1. HELPER SCRIPTS - Move duplicates to introdl package
+**Create new modules:**
+```bash
+# Create directories
+mkdir -p Lessons/Course_Tools/introdl/src/introdl/nlp/generation
+mkdir -p Lessons/Course_Tools/introdl/src/introdl/nlp/summarization
+```
+
+**Move files:**
+1. Copy `Lessons/Lesson_11_Text_Generation/helpers.py` → `introdl/src/introdl/nlp/generation.py`
+2. Copy `Lessons/Lesson_12_Summarization/helpers.py` → `introdl/src/introdl/nlp/summarization.py`
+3. Update `introdl/src/introdl/nlp/__init__.py` to import from these modules
+4. Delete `Homework/Homework_11/helpers.py` and `Homework/Homework_12/helpers.py`
+5. Update HW11 and HW12 notebooks to import from `introdl.nlp.generation` and `introdl.nlp.summarization`
+
+#### 2. NOTEBOOK RENAMING - Standardize all homework notebooks
+**Rename main notebooks to Homework_XX_Assignment.ipynb:**
+```bash
+cd Homework
+mv Homework_01/Homework_01_Classify_Spiral_Points.ipynb Homework_01/Homework_01_Assignment.ipynb
+mv Homework_02/Homework_02.ipynb Homework_02/Homework_02_Assignment.ipynb
+mv Homework_03/Homework_03.ipynb Homework_03/Homework_03_Assignment.ipynb
+# Continue for all 12 homeworks
+```
+
+**Handle special cases:**
+- HW07: Delete `Homework_07.ipynb`, rename `Homework_07_USE_THIS_ONE.ipynb` → `Homework_07_Assignment.ipynb`
+- HW09: Rename `Homework_09_Prompt_START_HERE.ipynb` → `Homework_09_Assignment.ipynb`
+- HW11/HW12: Remove Solutions notebooks from Homework folders
+
+#### 3. FOLDER STANDARDIZATION
+**Rename model folders to use capital M:**
+```bash
+mv Homework_01/Homework_01_models Homework_01/Homework_01_Models
+mv Homework_02/Homework_02_models Homework_02/Homework_02_Models
+# Continue for all that have model folders
+```
+
+**Standardize script names:**
+```bash
+mv Homework_01/Homework_01_scripts.py Homework_01/Homework_01_Helpers.py
+mv Homework_06/graphics_and_data_prep.py Homework_06/Homework_06_Helpers.py
+mv Homework_08/llm_helpers.py Homework_08/Homework_08_Helpers.py
+```
+
+#### 4. UPDATE IMPORTS in notebooks after renaming
+- Search and replace old filenames in notebook imports
+- Update from `Homework_01_scripts` to `Homework_01_Helpers`
+- Update from `from helpers import` to `from introdl.nlp.generation import` (HW11)
+- Update from `from helpers import` to `from introdl.nlp.summarization import` (HW12)
+
+#### 5. COPY MISSING HELPERS
+- Check if HW10 needs helpers.py from Lesson_10 (NER utilities)
+- If yes, copy and rename to Homework_10_Helpers.py
 
 ### Storage Analysis Results
 - Total storage across all HW: 34.9 GB
@@ -132,13 +182,15 @@
 - [ ] Update introdl package:
   - [x] **Condense config_paths_keys() output to reduce clutter**
   - [x] Implement new API key priority system
+  - [x] Version bump to 1.4.1
+  - [x] Remove deprecated TORCH_HUB variable
+  - [x] Fix cs_workspace data path for compute servers
+  - [ ] Add nlp.generation module (from L11/HW11 helpers)
+  - [ ] Add nlp.summarization module (from L12/HW12 helpers)
   - [ ] Audit and remove unused functions from idlmam.py
   - [ ] Add checkpoint_management.py module
   - [ ] Implement smart checkpoint rotation in train_network()
   - [ ] Add homework detection utilities
-  - [x] Version bump to 1.4.1
-  - [x] Remove deprecated TORCH_HUB variable
-  - [x] Fix cs_workspace data path for compute servers
 
 ### 2.2 Lessons 1-3 Updates
 - [ ] **Lesson 1**: 
@@ -156,15 +208,22 @@
 
 ### 2.3 Homework 1-3 Updates
 - [ ] **HW01**:
-  - [ ] Update import pattern
+  - [ ] Rename to Homework_01_Assignment.ipynb
+  - [ ] Update import pattern (remove installation cell)
+  - [ ] Rename Homework_01_scripts.py to Homework_01_Helpers.py
+  - [ ] Update imports in notebook
   - [ ] Adjust point distribution
   - [ ] Complete solution using student reference
-- [ ] **HW02**:
-  - [ ] Update import pattern
+- [x] **HW02**:
+  - [x] Added Reflection questions
+  - [ ] Rename to Homework_02_Assignment.ipynb
+  - [ ] Update import pattern (remove installation cell)
   - [ ] Adjust point distribution
   - [ ] Complete solution using student reference
 - [ ] **HW03**:
-  - [ ] Update import pattern
+  - [ ] Rename to Homework_03_Assignment.ipynb
+  - [ ] Add Reflection questions (copy from HW01)
+  - [ ] Update import pattern (remove installation cell)
   - [ ] Adjust point distribution
   - [ ] Complete solution using student reference
 
