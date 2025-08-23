@@ -364,7 +364,25 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         for path in [data_path, models_path, cache_path]:
             path.mkdir(parents=True, exist_ok=True)
         
-        print(f"   Workspace created at: {base_path}")
+        # Format path for display in local workspace mode  
+        def format_path_for_display(path):
+            """Format path for display with cleaner output"""
+            path_str = str(path)
+            home_str = str(Path.home())
+            
+            # If DS776_ROOT_DIR is set (local development), shorten the path
+            if 'DS776_ROOT_DIR' in os.environ:
+                root_dir = str(Path(os.environ['DS776_ROOT_DIR']) / "DS776")
+                # Replace the root directory portion with <DS776_ROOT_DIR>
+                if path_str.startswith(root_dir):
+                    path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
+            # For all environments, replace home directory with ~ for brevity
+            elif path_str.startswith(home_str):
+                path_str = path_str.replace(home_str, "~")
+            
+            return path_str
+        
+        print(f"   Workspace created at: {format_path_for_display(base_path)}")
         
         # Set environment variables
         os.environ["DATA_PATH"] = str(data_path)
@@ -448,8 +466,26 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             data_path = home_workspace / "data"
             cache_path = home_workspace / "downloads"
             
+            # Helper function to format paths for display (defined here for early use)
+            def format_path_for_display(path):
+                """Format path for display with cleaner output"""
+                path_str = str(path)
+                home_str = str(Path.home())
+                
+                # If DS776_ROOT_DIR is set (local development), shorten the path
+                if 'DS776_ROOT_DIR' in os.environ:
+                    root_dir = str(Path(os.environ['DS776_ROOT_DIR']) / "DS776")
+                    # Replace the root directory portion with <DS776_ROOT_DIR>
+                    if path_str.startswith(root_dir):
+                        path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
+                # For CoCalc environments, replace home directory with ~
+                elif environment in ["cocalc", "cocalc_compute_server"] and path_str.startswith(home_str):
+                    path_str = path_str.replace(home_str, "~")
+                
+                return path_str
+            
             print(f"📍 Environment: {env_names.get(environment, 'Unknown')} (Local Development)")
-            print(f"   Using workspace: {home_workspace}")
+            print(f"   Using workspace: {format_path_for_display(home_workspace)}")
             
             # Update environment variables
             os.environ["DATA_PATH"] = str(data_path)
@@ -524,13 +560,27 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         os.environ["XDG_CACHE_HOME"] = str(cache_path)
 
     # More verbose path output for clarity
+    # Use the format_path_for_display function if it was defined (in local dev mode)
+    # Otherwise, define a simple version for other environments
+    if 'DS776_ROOT_DIR' not in os.environ and 'format_path_for_display' not in locals():
+        # Define the function here for non-local-dev environments
+        def format_path_for_display(path):
+            """Format path for display with cleaner output"""
+            path_str = str(path)
+            home_str = str(Path.home())
+            
+            # Replace home directory with ~ for brevity in all environments
+            if path_str.startswith(home_str):
+                path_str = path_str.replace(home_str, "~")
+            
+            return path_str
     print(f"\n📂 Storage Configuration:")
-    print(f"   DATA_PATH: {data_path}")
+    print(f"   DATA_PATH: {format_path_for_display(data_path)}")
     if local_models_dir:
-        print(f"   MODELS_PATH: {models_path} (local to this notebook)")
+        print(f"   MODELS_PATH: {format_path_for_display(models_path)} (local to this notebook)")
     else:
-        print(f"   MODELS_PATH: {models_path}")
-    print(f"   CACHE_PATH: {cache_path}")
+        print(f"   MODELS_PATH: {format_path_for_display(models_path)}")
+    print(f"   CACHE_PATH: {format_path_for_display(cache_path)}")
     
     # Add helpful context based on environment
     if environment == "cocalc_compute_server":
