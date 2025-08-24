@@ -8,9 +8,6 @@
 #
 # In CoCalc: Repository is maintained in ~/DS776_repo, working folders in ~
 # In Local Dev: Everything is in the same git repository
-#
-# NOTE: Currently configured to work with feature/flexible-path-resolution branch
-#       Update to 'main' branch after merge
 
 set -e  # Exit on error
 
@@ -199,14 +196,7 @@ if [[ "$CLONE_MODE" == true ]]; then
         if git clone "$REPO_URL" "$REPO_DIR"; then
             print_success "Repository cloned successfully"
             
-            # Checkout the feature branch
-            cd "$REPO_DIR"
-            print_info "Checking out feature/flexible-path-resolution branch..."
-            if git checkout feature/flexible-path-resolution; then
-                print_success "Switched to feature/flexible-path-resolution branch"
-            else
-                print_warning "Could not checkout feature/flexible-path-resolution, staying on main"
-            fi
+            # Repository will be on main branch by default
             cd "$WORK_DIR"
             
             # Force refresh mode after clone
@@ -232,28 +222,17 @@ if [[ "$WORK_DIR" == "$HOME" ]]; then
         print_info "Updating repository at ${REPO_DIR}..."
         cd "$REPO_DIR"
         
-        # First, ensure we're on the correct branch
-        print_info "Ensuring we're on feature/flexible-path-resolution branch..."
+        # Fetch and pull latest changes from main
+        print_info "Fetching latest changes from main branch..."
         git fetch origin
-        if git checkout feature/flexible-path-resolution 2>/dev/null || git checkout -b feature/flexible-path-resolution origin/feature/flexible-path-resolution 2>/dev/null; then
-            print_success "On feature/flexible-path-resolution branch"
-        else
-            print_warning "Could not checkout feature branch, staying on current branch"
-        fi
+        git checkout main 2>/dev/null || git checkout -b main origin/main
         
-        # Pull latest changes in the repo
-        # For now, use the feature branch
-        if git pull origin feature/flexible-path-resolution; then
+        # Pull latest changes from main branch
+        if git pull origin main; then
             print_success "Repository updated successfully"
         else
-            # Fallback to current branch if feature branch doesn't exist
-            print_warning "Could not pull feature branch, trying current branch..."
-            if git pull origin "${CURRENT_BRANCH}"; then
-                print_success "Repository updated successfully"
-            else
-                print_error "Failed to update repository. Check for issues in ${REPO_DIR}"
-                exit 1
-            fi
+            print_error "Failed to update repository. Check for issues in ${REPO_DIR}"
+            exit 1
         fi
     fi
     
