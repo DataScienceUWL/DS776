@@ -232,6 +232,15 @@ if [[ "$WORK_DIR" == "$HOME" ]]; then
         print_info "Updating repository at ${REPO_DIR}..."
         cd "$REPO_DIR"
         
+        # First, ensure we're on the correct branch
+        print_info "Ensuring we're on feature/flexible-path-resolution branch..."
+        git fetch origin
+        if git checkout feature/flexible-path-resolution 2>/dev/null || git checkout -b feature/flexible-path-resolution origin/feature/flexible-path-resolution 2>/dev/null; then
+            print_success "On feature/flexible-path-resolution branch"
+        else
+            print_warning "Could not checkout feature branch, staying on current branch"
+        fi
+        
         # Pull latest changes in the repo
         # For now, use the feature branch
         if git pull origin feature/flexible-path-resolution; then
