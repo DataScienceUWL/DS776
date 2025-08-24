@@ -2,9 +2,10 @@
 
 # Script to sync course content (Lessons and Homework folders)
 # Usage: 
-#   ./sync_course_content.sh          # Default: backup and pull changes
-#   ./sync_course_content.sh --refresh # Backup and completely refresh from repo
-#   ./sync_course_content.sh --clone   # Clone fresh repo and refresh (CoCalc only)
+#   ./sync_course_content.sh              # Default: backup and pull changes
+#   ./sync_course_content.sh --refresh     # Backup and completely refresh from repo
+#   ./sync_course_content.sh --clone       # Clone fresh repo and refresh (CoCalc only)
+#   ./sync_course_content.sh --fresh-start # Complete reset: clone, refresh, reinstall package (CoCalc only)
 #
 # In CoCalc: Repository is maintained in ~/DS776_repo, working folders in ~
 # In Local Dev: Everything is in the same git repository
@@ -35,10 +36,14 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Parse command line arguments early to check for clone mode
+# Parse command line arguments early to check for special modes
 CLONE_MODE=false
+FRESH_START_MODE=false
 if [[ "$1" == "--clone" ]] || [[ "$1" == "-c" ]]; then
     CLONE_MODE=true
+elif [[ "$1" == "--fresh-start" ]] || [[ "$1" == "-f" ]]; then
+    FRESH_START_MODE=true
+    CLONE_MODE=true  # Fresh start includes cloning
 fi
 
 # Determine the working directory based on environment
@@ -48,22 +53,22 @@ if [[ -n "$COCALC_PROJECT_ID" ]] || [[ -f "$HOME/.smc" ]] || [[ -d "$HOME/.cocal
     IS_COCALC=true
 fi
 
-if [[ "$IS_COCALC" == true ]] || ([[ "$HOME" == "/home/"* ]] && [[ "$1" == "--clone" ]]); then
-    # CoCalc environment or likely CoCalc with --clone flag
+if [[ "$IS_COCALC" == true ]] || ([[ "$HOME" == "/home/"* ]] && ([[ "$1" == "--clone" ]] || [[ "$1" == "--fresh-start" ]])); then
+    # CoCalc environment or likely CoCalc with special flags
     print_info "Detected CoCalc environment"
     WORK_DIR="$HOME"  # Where Lessons and Homework folders live
     REPO_DIR="$HOME/DS776_repo"  # Where the git repo is
     
-    # Only verify repo exists if not in clone mode
-    if [[ "$CLONE_MODE" != true ]]; then
+    # Only verify repo exists if not in clone or fresh-start mode
+    if [[ "$CLONE_MODE" != true ]] && [[ "$FRESH_START_MODE" != true ]]; then
         if [[ ! -d "$REPO_DIR/.git" ]]; then
             print_error "Repository not found at ~/DS776_repo"
-            print_error "Please run with --clone flag to clone the repository first"
+            print_error "Please run with --clone or --fresh-start flag to get the repository"
             exit 1
         fi
         if [[ ! -d "$REPO_DIR/Lessons" ]] || [[ ! -d "$REPO_DIR/Homework" ]]; then
             print_error "Repository incomplete at ~/DS776_repo"
-            print_error "Please run with --clone flag to get a fresh copy"
+            print_error "Please run with --clone or --fresh-start flag to get a fresh copy"
             exit 1
         fi
     fi
@@ -80,7 +85,7 @@ elif git rev-parse --git-dir > /dev/null 2>&1; then
     fi
 else
     print_error "Could not detect environment. Please run from:"
-    print_error "  - CoCalc: anywhere (use --clone if repo doesn't exist)"
+    print_error "  - CoCalc: anywhere (use --clone or --fresh-start if repo doesn't exist)"
     print_error "  - Local: from within the DS776 repository"
     exit 1
 fi
@@ -88,11 +93,14 @@ fi
 # Change to work directory
 cd "$WORK_DIR"
 
-# Parse remaining command line arguments (CLONE_MODE already set above)
+# Parse remaining command line arguments (CLONE_MODE and FRESH_START_MODE already set above)
 REFRESH_MODE=false
 if [[ "$1" == "--refresh" ]] || [[ "$1" == "-r" ]]; then
     REFRESH_MODE=true
     print_info "Running in REFRESH mode - will completely reset Lessons and Homework from repo"
+elif [[ "$FRESH_START_MODE" == true ]]; then
+    print_info "Running in FRESH START mode - complete reset including package reinstall"
+    REFRESH_MODE=true  # Fresh start includes refresh
 elif [[ "$CLONE_MODE" == true ]]; then
     print_info "Running in CLONE mode - will clone fresh repo and reset Lessons and Homework"
 else
@@ -158,7 +166,7 @@ fi
 print_success "Backup completed in ${BACKUP_DIR}"
 
 # Handle clone mode if requested
-if [[ "$CLONE_MODE" == true ]]; then
+if [[ "$CLONE_MODE" == true ]] || [[ "$FRESH_START_MODE" == true ]]; then
     if [[ "$WORK_DIR" == "$HOME" ]]; then
         # CoCalc environment - clone fresh repo
         print_warning "Cloning fresh repository..."
@@ -207,7 +215,7 @@ if [[ "$CLONE_MODE" == true ]]; then
             exit 1
         fi
     else
-        print_error "Clone mode is only supported in CoCalc environment"
+        print_error "Clone/Fresh-start mode is only supported in CoCalc environment"
         print_info "In local development, use git commands directly"
         exit 1
     fi
@@ -218,7 +226,7 @@ if [[ "$WORK_DIR" == "$HOME" ]]; then
     # CoCalc mode: sync from repo to home directory
     
     # Update the repository (unless we just cloned it)
-    if [[ "$CLONE_MODE" != true ]]; then
+    if [[ "$CLONE_MODE" != true ]] && [[ "$FRESH_START_MODE" != true ]]; then
         print_info "Updating repository at ${REPO_DIR}..."
         cd "$REPO_DIR"
         
@@ -253,6 +261,46 @@ if [[ "$WORK_DIR" == "$HOME" ]]; then
         cp -r "${REPO_DIR}/Homework" .
         
         print_success "Lessons and Homework refreshed from repository!"
+        
+        # Handle fresh-start mode: reinstall introdl package
+        if [[ "$FRESH_START_MODE" == true ]]; then
+            print_info ""
+            print_info "🔧 Reinstalling introdl package..."
+            
+            # Uninstall existing package
+            print_info "Removing existing introdl installation..."
+            pip uninstall introdl -y 2>/dev/null || true
+            
+            # Clean up any leftover artifacts
+            rm -rf ~/.local/lib/python*/site-packages/introdl* 2>/dev/null || true
+            
+            # Clear pip cache
+            pip cache purge 2>/dev/null || true
+            
+            # Install fresh package
+            print_info "Installing fresh introdl package..."
+            cd ~/Lessons/Course_Tools/introdl
+            
+            # Clean build artifacts
+            rm -rf build dist *.egg-info src/*.egg-info 2>/dev/null || true
+            
+            # Install the package
+            if pip install . --no-cache-dir; then
+                print_success "introdl package installed successfully!"
+                
+                # Verify installation
+                if python -c "import introdl; print(f'✅ introdl v{introdl.__version__} installed')" 2>/dev/null; then
+                    print_success "Package verified and working!"
+                else
+                    print_warning "Package installed but could not verify version"
+                fi
+            else
+                print_error "Failed to install introdl package"
+                print_info "You may need to install it manually from ~/Lessons/Course_Tools/introdl"
+            fi
+            
+            cd "$WORK_DIR"
+        fi
     else
         # UPDATE MODE: Sync changes while preserving local work
         print_info "Syncing changes from repository..."
@@ -331,7 +379,9 @@ print_success "Sync operation completed!"
 echo -e "${BLUE}Summary:${NC}"
 echo "  • Backup location: ${BACKUP_DIR}"
 echo "  • Current branch: ${CURRENT_BRANCH}"
-if [[ "$CLONE_MODE" == true ]]; then
+if [[ "$FRESH_START_MODE" == true ]]; then
+    echo "  • Operation: Fresh start - cloned repo, refreshed folders, reinstalled package"
+elif [[ "$CLONE_MODE" == true ]]; then
     echo "  • Operation: Cloned fresh repository and refreshed"
 elif [[ "$REFRESH_MODE" == true ]]; then
     echo "  • Operation: Full refresh from repository"
