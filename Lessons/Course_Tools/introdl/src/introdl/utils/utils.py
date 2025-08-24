@@ -484,7 +484,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 
                 return path_str
             
-            print(f"📍 Environment: {env_names.get(environment, 'Unknown')} (Local Development)")
+            # Environment already printed above, just show workspace
             print(f"   Using workspace: {format_path_for_display(home_workspace)}")
             
             # Update environment variables
@@ -497,18 +497,10 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
                 # On compute server: use cs_workspace for both data and cache (local, not synced)
                 data_path = cs_workspace / "data"
                 cache_path = cs_workspace / "downloads"  # Local to compute server, not synced
-                
-                print(f"📍 Environment: CoCalc Compute Server")
-                print(f"   Data (local): {data_path}")
-                print(f"   Cache (local): {cache_path}")
             else:
                 # Base CoCalc: everything in home_workspace
                 data_path = home_workspace / "data"
                 cache_path = home_workspace / "downloads"
-                
-                print(f"📍 Environment: CoCalc Base Server")
-                print(f"   All paths in synced storage: {home_workspace}")
-                print(f"   ⚠️ 10GB storage limit in CoCalc")
                 
             # Update environment variables
             os.environ["DATA_PATH"] = str(data_path)
@@ -526,8 +518,6 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             # Use environment variables or defaults
             data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
             cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
-            
-            print(f"📍 Environment: {env_names.get(environment, 'Unknown')}")
         
         # Models always go in local Lesson/Homework folder if available
         if local_models_dir:
@@ -575,18 +565,30 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             
             return path_str
     print(f"\n📂 Storage Configuration:")
-    print(f"   DATA_PATH: {format_path_for_display(data_path)}")
-    if local_models_dir:
-        print(f"   MODELS_PATH: {format_path_for_display(models_path)} (local to this notebook)")
-    else:
-        print(f"   MODELS_PATH: {format_path_for_display(models_path)}")
-    print(f"   CACHE_PATH: {format_path_for_display(cache_path)}")
     
-    # Add helpful context based on environment
+    # Special handling for compute servers - split synced vs local
     if environment == "cocalc_compute_server":
-        print(f"\n   ℹ️ ~50GB storage limit (including synced CoCalc folders)")
-    elif environment == "cocalc":
-        print(f"\n   ⚠️ 10GB storage limit in CoCalc")
+        # Models are synced with CoCalc home server
+        print(f"   Synced with CoCalc Home Server:")
+        print(f"      MODELS_PATH: {format_path_for_display(models_path)}")
+        print(f"      ⚠️ Shared storage limited to about 10GB")
+        
+        # Data and cache are local to compute server only
+        print(f"   Local only on this Compute Server:")
+        print(f"      DATA_PATH: {format_path_for_display(data_path)}")
+        print(f"      CACHE_PATH: {format_path_for_display(cache_path)}")
+        print(f"      ℹ️ Additional compute server storage limited to about 50GB")
+    else:
+        # Regular display for other environments
+        print(f"   DATA_PATH: {format_path_for_display(data_path)}")
+        if local_models_dir:
+            print(f"   MODELS_PATH: {format_path_for_display(models_path)} (local to this notebook)")
+        else:
+            print(f"   MODELS_PATH: {format_path_for_display(models_path)}")
+        print(f"   CACHE_PATH: {format_path_for_display(cache_path)}")
+        
+        if environment == "cocalc":
+            print(f"   ⚠️ 10GB storage limit in CoCalc")
 
     # -- Load API keys with priority system --
     # Priority: 1) Environment variables, 2) ~/api_keys.env, 3) home_workspace/api_keys.env

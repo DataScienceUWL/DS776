@@ -33,10 +33,11 @@ INTRODL_DIR="$COURSE_ROOT/Lessons/Course_Tools/introdl"
 
 if [ -d "$INTRODL_DIR" ]; then
     echo "Found introdl package at: $INTRODL_DIR"
-    echo "Installing in editable mode..."
-    pip install -e "$INTRODL_DIR" --quiet
+    echo "Installing package (standard mode for CoCalc compatibility)..."
+    pip install "$INTRODL_DIR" --quiet
     if [ $? -eq 0 ]; then
         echo "✅ Package installed successfully!"
+        echo "   Note: Using standard install (not editable) for CoCalc compatibility"
     else
         echo "❌ Package installation failed"
         exit 1
