@@ -17,8 +17,7 @@ Solutions*.ipynb_checkpoints
 Solutions*.ipynb
 
 # Developer folder - contains instructor resources, not distributed
-Developer/Solutions/
-Developer/Ashley/
+Developer/
 
 # Ignore extras folder
 extras/

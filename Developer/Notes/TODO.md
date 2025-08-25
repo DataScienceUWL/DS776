@@ -2,12 +2,16 @@
 **Course Start: Next Week**
 **Priority: Launch-ready utilities + Lessons/HW 1-3**
 
-## Session Progress (Most Recent - Aug 24, 2025)
+## Session Progress (Most Recent - Aug 24, 2025) - Today
 ### Completed Tasks ✅
 - [x] Fixed config_paths_keys showing old version in CoCalc (package caching issue)
 - [x] Created sync_course_content.sh with --fresh-start flag for complete CoCalc reset
 - [x] Merged development branch into main with all sync script updates
 - [x] Removed all references to feature/flexible-path-resolution branch
+- [x] **Add /Developer to .gitignore** - Prevented instructor materials from being shared
+- [x] **Move Canvas Quiz notebooks** - Moved from each Lesson folder to Developer/Canvas_Quizzes/
+- [x] **Update HW2 for Tuesday launch** - Added reflection questions based on Chapter 3 reading
+- [x] **Update HW3 for Tuesday launch** - Added reflection questions based on Chapter 6 (sections 6.1-6.4)
 
 ### Previous Session (Aug 23, 2025)
 - [x] Fixed file path issues in HW5 (Flowers102 dataset)
@@ -32,14 +36,25 @@
 - [x] Added Reflection questions to Homework_02
 - [x] Analyzed helper scripts and created recommendations (see Developer/Notes/helper_script_recommendations.md)
 
-### Next Session Priority (Aug 25, 2025) - LAUNCH PREP
+### Next Session Priority (Aug 25, 2025) - FINAL LAUNCH PREP
 
-#### PRIORITY TASKS FOR TOMORROW
-1. **Add /Developer to .gitignore** - Prevent instructor materials from being shared
-2. **Move Canvas Quiz notebooks** - Move from each Lesson folder to Developer/Canvas_Quizzes/
-3. **Update HW2 for Tuesday launch** - Complete solution, test, ensure ready
-4. **Update HW3 for Tuesday launch** - Add Reflection questions, complete solution
-5. **Create script to run all Lesson notebooks** - Execute and save outputs before sharing
+#### COMPLETED TODAY
+- [x] **Standardized HW1-3 formatting** - Added consistent prompts, point values, and structure
+- [x] **Fixed point values** - All homeworks now 50 points total
+- [x] **Added Canvas submission requirements** - Added _GRADE_THIS_ONE filename requirement
+- [x] **Created backup copies** - Homework_XX_Original.ipynb for all three assignments
+
+#### REMAINING PRIORITY TASKS FOR TODAY
+1. **Update AI use policy in Lesson 1** - Add to L01_1_Class_and_Lesson_Intro.ipynb:
+   - Encourage AI use for understanding material
+   - Warn that AI-generated code not aligned with course approaches = 0 points
+   - Emphasize value in learning frameworks and understanding code
+2. **Revise AI use section in syllabus** - Align with Lesson 1 policy updates
+3. **Redo "Getting Started in CoCalc and Canvas" video** - Replace existing Canvas video
+4. **Sync updated HW and Lessons to CoCalc** - Ensure all changes are deployed
+5. **Revise Canvas announcements** - Update for course launch
+6. **Investigate Developer/Ashley access issue** - Fix file system permissions/readability
+7. **Create script to run all Lesson notebooks** - Execute and save outputs before sharing
 
 #### WORKFLOW REMINDER
 - Work on development branch locally
