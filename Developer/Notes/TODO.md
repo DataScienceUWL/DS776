@@ -43,18 +43,16 @@
 - [x] **Fixed point values** - All homeworks now 50 points total
 - [x] **Added Canvas submission requirements** - Added _GRADE_THIS_ONE filename requirement
 - [x] **Created backup copies** - Homework_XX_Original.ipynb for all three assignments
+- [x] **Updated AI use policy in Lesson 1** - Added comprehensive policy to L01_1_Class_and_Lesson_Intro.ipynb
+- [x] **Revised AI use section in syllabus** - Aligned with Lesson 1 policy updates
+- [x] **Added syllabus questions to HW1** - 3 questions about deadlines, AI policy, and getting help
 
 #### REMAINING PRIORITY TASKS FOR TODAY
-1. **Update AI use policy in Lesson 1** - Add to L01_1_Class_and_Lesson_Intro.ipynb:
-   - Encourage AI use for understanding material
-   - Warn that AI-generated code not aligned with course approaches = 0 points
-   - Emphasize value in learning frameworks and understanding code
-2. **Revise AI use section in syllabus** - Align with Lesson 1 policy updates
-3. **Redo "Getting Started in CoCalc and Canvas" video** - Replace existing Canvas video
-4. **Sync updated HW and Lessons to CoCalc** - Ensure all changes are deployed
-5. **Revise Canvas announcements** - Update for course launch
-6. **Investigate Developer/Ashley access issue** - Fix file system permissions/readability
-7. **Create script to run all Lesson notebooks** - Execute and save outputs before sharing
+1. **Redo "Getting Started in CoCalc and Canvas" video** - Replace existing Canvas video
+2. **Sync updated HW and Lessons to CoCalc** - Ensure all changes are deployed
+3. **Revise Canvas announcements** - Update for course launch
+4. **Investigate Developer/Ashley access issue** - Fix file system permissions/readability
+5. **Create script to run all Lesson notebooks** - Execute and save outputs before sharing
 
 #### WORKFLOW REMINDER
 - Work on development branch locally
