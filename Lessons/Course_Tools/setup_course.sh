@@ -33,7 +33,12 @@ INTRODL_DIR="$COURSE_ROOT/Lessons/Course_Tools/introdl"
 
 if [ -d "$INTRODL_DIR" ]; then
     echo "Found introdl package at: $INTRODL_DIR"
-    echo "Installing package (standard mode for CoCalc compatibility)..."
+    
+    # Uninstall existing package if present
+    echo "Removing any existing introdl installation..."
+    pip uninstall introdl -y --quiet 2>/dev/null
+    
+    echo "Installing fresh introdl package (standard mode for CoCalc compatibility)..."
     pip install "$INTRODL_DIR" --quiet
     if [ $? -eq 0 ]; then
         echo "✅ Package installed successfully!"
