@@ -41,6 +41,10 @@ data/
 downloads/
 models/
 
+# Lesson and Homework Models folders
+Lessons/Lesson_*/Lesson_*_Models/
+Homework/Homework_*/Homework_*_Models/
+
 # Model and data files
 *.pt
 *.pth

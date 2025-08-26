@@ -9,6 +9,33 @@ from .utils import wrap_print_text
 from .utils import config_paths_keys
 from .utils import cleanup_torch
 from .utils import convert_nb_to_html
+from .utils import check_cache_usage
+from .utils import clear_model_cache
+
+# Import path utilities
+from .path_utils import (
+    get_course_root,
+    get_lessons_dir,
+    get_homework_dir,
+    get_solutions_dir,
+    get_course_tools_dir,
+    get_workspace_dir,
+    resolve_env_file,
+    resolve_api_keys_file
+)
+
+# Import storage utilities
+from .storage_utils import (
+    get_folder_size,
+    format_size,
+    get_comprehensive_storage_report,
+    display_storage_report,
+    cleanup_old_cache,
+    delete_lesson_or_homework_models,
+    delete_current_lesson_models,
+    export_homework_html_interactive,
+    zip_homework_models
+)
 
 __all__ = [
     "detect_jupyter_environment",
@@ -17,9 +44,30 @@ __all__ = [
     "load_model",
     "summarizer",
     "create_CIFAR10_loaders",
-    "classifer_predict",
+    "classifier_predict",
     "wrap_print_text",
     "config_paths_keys",
     "cleanup_torch",  
-    "convert_nb_to_html", 
+    "convert_nb_to_html",
+    "check_cache_usage",
+    "clear_model_cache",
+    # Path utilities
+    "get_course_root",
+    "get_lessons_dir", 
+    "get_homework_dir",
+    "get_solutions_dir",
+    "get_course_tools_dir",
+    "get_workspace_dir",
+    "resolve_env_file",
+    "resolve_api_keys_file",
+    # Storage utilities
+    "get_folder_size",
+    "format_size",
+    "get_comprehensive_storage_report",
+    "display_storage_report",
+    "cleanup_old_cache",
+    "delete_lesson_or_homework_models",
+    "delete_current_lesson_models",
+    "export_homework_html_interactive",
+    "zip_homework_models"
 ]

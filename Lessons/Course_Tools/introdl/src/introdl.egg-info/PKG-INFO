@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: introdl
-Version: 1.4
+Version: 1.4.1
 Summary: Introductory Deep Learning Package
 Author-email: Your Name <you@example.com>
 Requires-Dist: accelerate
@@ -22,6 +22,7 @@ Requires-Dist: numpy
 Requires-Dist: openai>=1.65.5
 Requires-Dist: pandas
 Requires-Dist: protobuf
+Requires-Dist: pycocotools
 Requires-Dist: pyperclip
 Requires-Dist: rapidfuzz
 Requires-Dist: rouge_score

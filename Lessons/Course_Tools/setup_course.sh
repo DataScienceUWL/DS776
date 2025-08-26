@@ -49,34 +49,13 @@ else
 fi
 
 echo ""
-echo "📁 Step 2: Creating workspace structure..."
+echo "🔑 Step 2: Setting up API keys configuration..."
 echo "=========================================="
 
-# Create home_workspace structure
+# Note: config_paths_keys will create workspace directories automatically
+# We just need to ensure api_keys.env exists in home_workspace
 HOME_WORKSPACE="$COURSE_ROOT/home_workspace"
-mkdir -p "$HOME_WORKSPACE/data"
-mkdir -p "$HOME_WORKSPACE/downloads"
-mkdir -p "$HOME_WORKSPACE/models"
-
-echo "✅ Created workspace structure:"
-echo "   - $HOME_WORKSPACE/data"
-echo "   - $HOME_WORKSPACE/downloads"
-echo "   - $HOME_WORKSPACE/models"
-
-# Check if on a CoCalc compute server
-if [ -d "$HOME/cs_workspace" ]; then
-    echo ""
-    echo "📁 Detected CoCalc compute server, creating cs_workspace..."
-    CS_WORKSPACE="$HOME/cs_workspace"
-    mkdir -p "$CS_WORKSPACE/data"
-    mkdir -p "$CS_WORKSPACE/downloads"
-    mkdir -p "$CS_WORKSPACE/models"
-    echo "✅ Created compute server workspace at: $CS_WORKSPACE"
-fi
-
-echo ""
-echo "🔑 Step 3: Setting up API keys configuration..."
-echo "=========================================="
+mkdir -p "$HOME_WORKSPACE"  # Ensure directory exists for api_keys
 
 # Copy api_keys.env template if it doesn't exist
 API_KEYS_DEST="$HOME_WORKSPACE/api_keys.env"
@@ -100,7 +79,7 @@ else
 fi
 
 echo ""
-echo "🔍 Step 4: Verifying installation..."
+echo "🔍 Step 3: Verifying installation..."
 echo "=========================================="
 
 # Test Python import
@@ -109,6 +88,20 @@ if [ $? -ne 0 ]; then
     echo "⚠️  Could not verify introdl installation"
     echo "   You may need to restart your Python kernel"
 else
+    # Test config_paths_keys (this will create workspace directories)
+    echo ""
+    echo "Testing configuration and creating workspace directories..."
+    python3 -c "
+import os
+os.environ['DS776_ROOT_DIR'] = '$COURSE_ROOT'
+from introdl.utils import config_paths_keys
+paths = config_paths_keys()
+print('✅ Workspace directories created automatically')
+print(f'   Data:   {paths[\"DATA_PATH\"]}')
+print(f'   Models: {paths[\"MODELS_PATH\"]}')
+print(f'   Cache:  {paths[\"CACHE_PATH\"]}')
+" 2>/dev/null
+    
     # Test PyTorch
     python3 -c "import torch; print(f'✅ PyTorch version {torch.__version__} available')" 2>/dev/null
     if [ $? -ne 0 ]; then
@@ -124,10 +117,14 @@ echo ""
 echo "Next steps:"
 echo "1. Add your API keys to: $API_KEYS_DEST"
 echo "2. Start with Lesson 01 notebooks"
-echo "3. Use homework utility notebooks for storage management"
+echo "3. Workspace folders are created automatically when you run notebooks"
 echo ""
 echo "For help:"
 echo "- Storage issues: Use Clean_and_Free_Space.ipynb"
 echo "- Package updates: Run this script again"
 echo "- API key issues: Check $API_KEYS_DEST"
+echo ""
+echo "Note: The introdl package automatically creates workspace directories"
+echo "      (home_workspace, cs_workspace, and Lesson/Homework Models folders)"
+echo "      when you import and use config_paths_keys() in your notebooks."
 echo ""

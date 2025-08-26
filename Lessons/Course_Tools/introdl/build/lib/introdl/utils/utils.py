@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms.v2 as transforms
 import sys
@@ -30,6 +30,7 @@ import tempfile
 import shutil
 import inspect
 
+
 # Fallback-safe normalize import
 try:
     from nbformat.normalized import normalize
@@ -50,101 +51,612 @@ finally:
 # Utility Functions
 ###########################################################
 
+import os
+import sys
+from pathlib import Path
+
+
 def detect_jupyter_environment():
-    if 'google.colab' in sys.modules:
-        return "colab"
-    elif 'VSCODE_PID' in os.environ:
-        return "vscode"
-    elif 'COCALC_CODE_PORT' in os.environ:
-        return "cocalc"
-    elif 'JPY_PARENT_PID' in os.environ:
-        return "jupyterlab"
-    else:
-        return "Unknown"
-
-def config_paths_keys(env_path="~/Lessons/Course_Tools/local.env", api_keys_env="~/Lessons/Course_Tools/api_keys.env"):
     """
-    Reads environment variables and sets paths.
-    If variables are not set, it uses dotenv to load them based on the environment:
-    - CoCalc: ~/Lessons/Course_Tools/cocalc.env
-    - Colab: ~/Lessons/Course_Tools/colab.env
-    - Other: ~/Lessons/Course_Tools/local.env (default)
+    Detects the Jupyter environment and returns one of:
+    - "colab": Running in official Google Colab
+    - "lightning": Running in Lightning AI Studio
+    - "vscode": Running in VSCode
+    - "cocalc": Running inside the CoCalc frontend
+    - "cocalc_compute_server": Running on a compute server (e.g., GCP or Hyperstack) launched from CoCalc
+    - "paperspace": Running in a Paperspace notebook
+    - "unknown": Environment not recognized
+    """
+    import os
+    import sys
+    from pathlib import Path
 
-    Additionally, loads API keys from api_keys_env if HF_TOKEN and OPENAI_API_KEY are not already set.
+    # --- Check for Lightning AI Studio ---
+    if (
+        os.environ.get('ENVIRONMENT', '').lower().startswith('beta-lightning')
+        or 'LIGHTNING_CLOUDSPACE_HOST' in os.environ
+        or 'LIGHTNING_RESOURCE_TYPE' in os.environ
+    ):
+        return "lightning"
 
-    Parameters:
-        env_path (str): Path to the local environment file, defaulting to ~/Lessons/Course_Tools/local.env.
-        api_keys_env (str): Path to the API keys environment file, defaulting to ~/Lessons/Course_Tools/api_keys.env.
+    # --- Check for CoCalc frontend ---
+    if 'COCALC_CODE_PORT' in os.environ:
+        return "cocalc"
+    
+    # --- Check for CoCalc Compute Server (e.g., GCP or Hyperstack) ---
+    if Path.home().joinpath("cs_workspace").exists():
+        return "cocalc_compute_server"
+
+    # --- Check for Google Colab ---
+    if 'google.colab' in sys.modules:
+        if 'COLAB_RELEASE_TAG' in os.environ or 'COLAB_GPU' in os.environ:
+            return "colab"
+
+    # --- Check for VSCode ---
+    if 'VSCODE_PID' in os.environ:
+        return "vscode"
+
+    # --- Check for Paperspace ---
+    if 'PAPERSPACE_NOTEBOOK_ID' in os.environ:
+        return "paperspace"
+
+    # --- Fallback ---
+    return "unknown"
+
+
+def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
+    """
+    Configures workspace paths and loads API keys based on the runtime environment.
+    
+    Args:
+        env_path: Path to environment file (optional)
+        api_env_path: Path to API keys file (optional)
+        local_workspace: If True, creates workspace in notebook's directory (for testing)
 
     Returns:
-        dict: A dictionary with keys 'MODELS_PATH' and 'DATA_PATH'.
+        dict: {'MODELS_PATH', 'DATA_PATH', 'CACHE_PATH'}
     """
-    # Determine the environment
-    ## this doesn't work in GCP instance with PyTorch image instead
+    import os
+    from pathlib import Path
+    from dotenv import load_dotenv
+    from introdl.utils import detect_jupyter_environment  # adjust if needed
+    from introdl.utils.path_utils import (
+        get_course_root, get_workspace_dir, resolve_env_file, resolve_api_keys_file
+    )
+    
+    # Check for environment variable override
+    if os.environ.get('DS776_LOCAL_WORKSPACE', '').lower() == 'true':
+        local_workspace = True
+
+    env_names = {
+        "colab": "Official Google Colab",
+        "lightning": "Lightning AI Studio",
+        "cocalc": "CoCalc Home Server",
+        "cocalc_compute_server": "CoCalc Compute Server",
+        "vscode": "VSCode Jupyter",
+        "paperspace": "Paperspace Notebook",
+        "unknown": "Unknown Environment"
+    }
+
     environment = detect_jupyter_environment()
-    if environment == "cocalc":
-        env_file = Path("~/Lessons/Course_Tools/cocalc.env").expanduser()
-    elif environment == "colab":
-        env_file = Path("~/Lessons/Course_Tools/colab.env").expanduser()
-    else: # hack for working in GCP instance with PyTorch image instead or Hyperstack
-        #env_file = Path(env_path).expanduser()
-        env_file = Path("~/Lessons/Course_Tools/colab.env").expanduser()
+    
+    # ========================================================================
+    # NEW: Check for Lesson/Homework directory and create local models folder
+    # ========================================================================
+    cwd = Path.cwd()
+    parent_dir = cwd.name  # Get the current directory name
+    local_models_dir = None
+    
+    # Check if we're in a Lesson or Homework folder
+    if parent_dir.startswith("Lesson_") or parent_dir.startswith("Homework_"):
+        try:
+            if parent_dir.startswith("Lesson_"):
+                # Extract lesson number from directory name
+                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_07_Models"
+                parts = parent_dir.split("_")
+                if len(parts) >= 2 and parts[1].isdigit():
+                    lesson_num = parts[1]  # Keep zero-padding
+                    local_models_dir = cwd / f"Lesson_{lesson_num}_Models"
+                    
+            elif parent_dir.startswith("Homework_"):
+                # Extract homework number from directory name
+                # e.g., "Homework_07" -> "Homework_07_Models"
+                parts = parent_dir.split("_")
+                if len(parts) >= 2 and parts[1].isdigit():
+                    hw_num = parts[1]  # Keep zero-padding
+                    local_models_dir = cwd / f"Homework_{hw_num}_Models"
+            
+            if local_models_dir:
+                # Create the directory if it doesn't exist
+                local_models_dir.mkdir(exist_ok=True)
+                    
+        except Exception as e:
+            # Silent fallback - don't confuse students with error messages
+            local_models_dir = None
+    
+    # Handle local workspace mode (for testing student solutions)
+    if local_workspace:
+        print(f"📦 Local Workspace Mode - Creating workspace in notebook directory")
+        # Try to get notebook directory, fallback to current working directory
+        try:
+            import ipykernel
+            import json
+            from pathlib import Path
+            
+            # Get the notebook's directory
+            connection_file = ipykernel.get_connection_file()
+            with open(connection_file) as f:
+                kernel_data = json.load(f)
+            
+            # This is imperfect but works for most cases
+            notebook_dir = Path.cwd()
+        except:
+            notebook_dir = Path.cwd()
+        
+        # Create home_workspace in the notebook's directory
+        base_path = notebook_dir / "home_workspace"
+        data_path = base_path / "data"
+        
+        # Use local models directory if available, otherwise use home_workspace/models
+        if local_models_dir:
+            models_path = local_models_dir
+        else:
+            models_path = base_path / "models"
+            
+        cache_path = base_path / "downloads"
+        
+        for path in [data_path, models_path, cache_path]:
+            path.mkdir(parents=True, exist_ok=True)
+        
+        # Format path for display in local workspace mode  
+        def format_path_for_display(path):
+            """Format path for display with cleaner output"""
+            path_str = str(path)
+            home_str = str(Path.home())
+            
+            # If DS776_ROOT_DIR is set (local development), shorten the path
+            if 'DS776_ROOT_DIR' in os.environ:
+                root_dir = os.environ['DS776_ROOT_DIR']
+                # Replace the root directory portion with <DS776_ROOT_DIR>
+                if path_str.startswith(root_dir):
+                    path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
+            # For all environments, replace home directory with ~ for brevity
+            elif path_str.startswith(home_str):
+                path_str = path_str.replace(home_str, "~")
+            
+            return path_str
+        
+        print(f"   Workspace created at: {format_path_for_display(base_path)}")
+        
+        # Set environment variables
+        os.environ["DATA_PATH"] = str(data_path)
+        os.environ["MODELS_PATH"] = str(models_path)
+        os.environ["CACHE_PATH"] = str(cache_path)
+        
+        # Configure caching locations
+        os.environ["TORCH_HOME"] = str(cache_path)
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
+        os.environ["TQDM_NOTEBOOK"] = "true"
+        
+    else:
+        # Simplified environment detection output
+        env_display = env_names.get(environment, 'Unknown')
+        if 'DS776_ROOT_DIR' in os.environ:
+            print(f"✅ Environment: {env_display} | Course root: {get_course_root()}")
+        else:
+            print(f"✅ Environment: {env_display}")
 
-    # Load the environment variables from the determined .env file
-    load_dotenv(env_file, override=False)
+    # -- Path setup --
+    if local_workspace:
+        # Already handled above
+        pass
+    elif environment in {"colab", "lightning"}:
+        # Treat Lightning like Colab: Create local temp_workspace
+        base_path = get_workspace_dir(environment)
+        data_path = base_path / "data"
+        
+        # Use local models directory if available
+        if local_models_dir:
+            models_path = local_models_dir
+        else:
+            models_path = base_path / "models"
+            
+        cache_path = base_path / "downloads"
 
-    # Load API keys if not already set
-    if not os.getenv('HF_TOKEN') or not os.getenv('OPENAI_API_KEY') or not os.getenv('GEMINI_API_KEY'):
-        api_keys_file = Path(api_keys_env).expanduser()
-        load_dotenv(api_keys_file, override=False)
-
-    # Retrieve and expand paths
-    models_path = Path(os.getenv('MODELS_PATH', "")).expanduser()
-    data_path = Path(os.getenv('DATA_PATH', "")).expanduser()
-    cache_path = Path(os.getenv('CACHE_PATH', "")).expanduser()
-    torch_home = Path(os.getenv('TORCH_HOME', "")).expanduser()
-    hf_home = Path(os.getenv('HF_HOME', "")).expanduser()
-
-    # Set environment variables to expanded paths
-    os.environ['MODELS_PATH'] = str(models_path)
-    os.environ['DATA_PATH'] = str(data_path)
-    os.environ['CACHE_PATH'] = str(cache_path)
-    os.environ['TORCH_HOME'] = str(cache_path)
-    os.environ['HF_HOME'] = str(cache_path)
-    os.environ['HF_DATASETS_CACHE'] = str(data_path)
-
-    # Create directories if they don't exist
-    for path in [models_path, data_path, cache_path, torch_home, hf_home]:
-        if not path.exists():
+        for path in [data_path, models_path, cache_path]:
             path.mkdir(parents=True, exist_ok=True)
 
-    # Ensure paths are set
-    print(f"MODELS_PATH={models_path}")
-    print(f"DATA_PATH={data_path}")
-    print(f"CACHE_PATH={cache_path}")
-    print(f"TORCH_HOME={torch_home}")
-    print(f"HF_HOME={hf_home}")
-    print(f"HF_DATASETS_CACHE={os.getenv('HF_DATASETS_CACHE')}")
+        os.environ["DATA_PATH"] = str(data_path)
+        os.environ["MODELS_PATH"] = str(models_path)
+        os.environ["CACHE_PATH"] = str(cache_path)
+        # Configure ALL caching locations to use our cache_path
+        # This centralizes all downloaded models in one place for easy cleanup
+        
+        # PyTorch/torchvision pretrained models
+        os.environ["TORCH_HOME"] = str(cache_path)
+        
+        # HuggingFace models and datasets
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)  # Datasets go to data_path
+        
+        # General cache location (used by some libraries as fallback)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
+        
+        # TQDM settings
+        os.environ["TQDM_NOTEBOOK"] = "true"
 
-    # Login to Hugging Face if token is set
-    if os.getenv('HF_TOKEN'):
+    else:
+        # Determine paths based on environment (CoCalc base vs compute server vs local)
+        home_dir = Path.home()
+        cs_workspace = home_dir / "cs_workspace"
+        home_workspace = home_dir / "home_workspace"
+        
+        # Check if we're on a CoCalc compute server (has cs_workspace)
+        on_compute_server = cs_workspace.exists() and environment == "cocalc_compute_server"
+        
+        # Check if DS776_ROOT_DIR is set (local development)
+        if 'DS776_ROOT_DIR' in os.environ:
+            # Local development mode - mirror CoCalc structure
+            base_dir = get_course_root()
+            home_workspace = base_dir / "home_workspace"
+            home_workspace.mkdir(parents=True, exist_ok=True)
+            
+            data_path = home_workspace / "data"
+            cache_path = home_workspace / "downloads"
+            
+            # Helper function to format paths for display (defined here for early use)
+            def format_path_for_display(path):
+                """Format path for display with cleaner output"""
+                path_str = str(path)
+                home_str = str(Path.home())
+                
+                # If DS776_ROOT_DIR is set (local development), shorten the path
+                if 'DS776_ROOT_DIR' in os.environ:
+                    root_dir = os.environ['DS776_ROOT_DIR']
+                    # Replace the root directory portion with <DS776_ROOT_DIR>
+                    if path_str.startswith(root_dir):
+                        path_str = path_str.replace(root_dir, "<DS776_ROOT_DIR>")
+                # For CoCalc environments, replace home directory with ~
+                elif environment in ["cocalc", "cocalc_compute_server"] and path_str.startswith(home_str):
+                    path_str = path_str.replace(home_str, "~")
+                
+                return path_str
+            
+            # Environment already printed above, just show workspace
+            print(f"   Using workspace: {format_path_for_display(home_workspace)}")
+            
+            # Update environment variables
+            os.environ["DATA_PATH"] = str(data_path)
+            os.environ["CACHE_PATH"] = str(cache_path)
+            
+        elif environment in ["cocalc", "cocalc_compute_server"]:
+            # CoCalc environments
+            if on_compute_server:
+                # On compute server: use cs_workspace for both data and cache (local, not synced)
+                data_path = cs_workspace / "data"
+                cache_path = cs_workspace / "downloads"  # Local to compute server, not synced
+            else:
+                # Base CoCalc: everything in home_workspace
+                data_path = home_workspace / "data"
+                cache_path = home_workspace / "downloads"
+                
+            # Update environment variables
+            os.environ["DATA_PATH"] = str(data_path)
+            os.environ["CACHE_PATH"] = str(cache_path)
+            
+        else:
+            # Other environments (VSCode, unknown, etc.)
+            # Check for environment file
+            env_file = resolve_env_file(env_path, environment)
+            
+            if env_file.exists():
+                load_dotenv(env_file, override=False)
+                print(f"   Loaded config from: {env_file}")
+            
+            # Use environment variables or defaults
+            data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+            cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+        
+        # Models always go in local Lesson/Homework folder if available
+        if local_models_dir:
+            models_path = local_models_dir
+            os.environ["MODELS_PATH"] = str(models_path)
+        else:
+            # Fallback to environment variable or default
+            if 'DS776_ROOT_DIR' in os.environ:
+                models_path = get_course_root() / "home_workspace" / "models"
+            else:
+                models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+            os.environ["MODELS_PATH"] = str(models_path)
+
+        for path in [data_path, models_path, cache_path]:
+            path.mkdir(parents=True, exist_ok=True)
+
+        # Configure ALL caching locations to use our cache_path
+        # This centralizes all downloaded models in one place for easy cleanup
+        
+        # PyTorch/torchvision pretrained models
+        os.environ["TORCH_HOME"] = str(cache_path)
+        
+        # HuggingFace models and datasets
+        os.environ["HF_HOME"] = str(cache_path / "huggingface")
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(cache_path / "huggingface" / "hub")
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_path / "huggingface" / "transformers")
+        os.environ["HF_DATASETS_CACHE"] = str(data_path)  # Datasets go to data_path
+        
+        # General cache location (used by some libraries as fallback)
+        os.environ["XDG_CACHE_HOME"] = str(cache_path)
+
+    # More verbose path output for clarity
+    # Use the format_path_for_display function if it was defined (in local dev mode)
+    # Otherwise, define a simple version for other environments
+    if 'DS776_ROOT_DIR' not in os.environ and 'format_path_for_display' not in locals():
+        # Define the function here for non-local-dev environments
+        def format_path_for_display(path):
+            """Format path for display with cleaner output"""
+            path_str = str(path)
+            home_str = str(Path.home())
+            
+            # Replace home directory with ~ for brevity in all environments
+            if path_str.startswith(home_str):
+                path_str = path_str.replace(home_str, "~")
+            
+            return path_str
+    print(f"\n📂 Storage Configuration:")
+    
+    # Special handling for compute servers - split synced vs local
+    if environment == "cocalc_compute_server":
+        # Models are synced with CoCalc home server
+        print(f"   Synced with CoCalc Home Server:")
+        print(f"      MODELS_PATH: {format_path_for_display(models_path)}")
+        print(f"      ⚠️ Shared storage limited to about 10GB")
+        
+        # Data and cache are local to compute server only
+        print(f"   Local only on this Compute Server:")
+        print(f"      DATA_PATH: {format_path_for_display(data_path)}")
+        print(f"      CACHE_PATH: {format_path_for_display(cache_path)}")
+        print(f"      ℹ️ Additional compute server storage limited to about 50GB")
+    else:
+        # Regular display for other environments
+        print(f"   DATA_PATH: {format_path_for_display(data_path)}")
+        if local_models_dir:
+            print(f"   MODELS_PATH: {format_path_for_display(models_path)} (local to this notebook)")
+        else:
+            print(f"   MODELS_PATH: {format_path_for_display(models_path)}")
+        print(f"   CACHE_PATH: {format_path_for_display(cache_path)}")
+        
+        if environment == "cocalc":
+            print(f"   ⚠️ 10GB storage limit in CoCalc")
+
+    # -- Load API keys with priority system --
+    # Priority: 1) Environment variables, 2) ~/api_keys.env, 3) home_workspace/api_keys.env
+    
+    # First, capture which API keys/tokens are already in the environment
+    existing_keys = {}
+    key_patterns = ["_API_KEY", "_TOKEN"]
+    placeholder_values = ["abcdefg", "", None, "your_", "xxx"]  # Common placeholder patterns
+    
+    for key in os.environ:
+        for pattern in key_patterns:
+            if pattern in key:
+                val = os.environ[key]
+                # Check if it's a real value (not placeholder)
+                is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                if not is_placeholder and val:
+                    existing_keys[key] = val
+    
+    # Find the API keys file using path_utils (implements priority)
+    api_keys_file = resolve_api_keys_file(api_env_path)
+    
+    # Special handling for Colab - check Google Drive location
+    if environment == "colab" and not api_keys_file:
+        colab_path = Path("/content/drive/MyDrive/Colab Notebooks/api_keys.env")
+        if colab_path.exists():
+            api_keys_file = colab_path
+    
+    if api_keys_file and api_keys_file.exists():
+        # Load API keys but don't override existing environment variables
+        # This respects the priority: env vars > file values
+        load_dotenv(api_keys_file, override=False)
+        
+        # Clean up any placeholder values that got loaded
+        for key in list(os.environ.keys()):
+            for pattern in key_patterns:
+                if pattern in key:
+                    val = os.environ[key]
+                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                    if is_placeholder:
+                        # Remove placeholder values
+                        del os.environ[key]
+        
+        # Count valid keys loaded
+        valid_keys = 0
+        for key in os.environ:
+            for pattern in key_patterns:
+                if pattern in key:
+                    val = os.environ[key]
+                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+                    if not is_placeholder and val:
+                        valid_keys += 1
+        
+        # Condensed API key loading message
+        if valid_keys > 0:
+            # Show where keys were loaded from
+            if "home_workspace" in str(api_keys_file):
+                location = "home_workspace/api_keys.env"
+            elif api_keys_file.parent == Path.home():
+                location = "~/api_keys.env"
+            else:
+                location = api_keys_file.name
+            print(f"🔑 API keys: {valid_keys} loaded from {location}")
+
+    # -- List loaded API keys (condensed) --
+    found_keys = []
+    for key in os.environ:
+        if key.endswith("_API_KEY") or key.endswith("_TOKEN"):
+            val = os.environ[key]
+            is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
+            if not is_placeholder and val:
+                found_keys.append(key)
+    
+    if found_keys:
+        # Just show count and names, not values
+        key_names = ', '.join(sorted(found_keys))
+        if len(key_names) > 50:  # Truncate if too long
+            key_names = ', '.join(sorted(found_keys)[:3]) + f"... ({len(found_keys)} total)"
+        print(f"🔐 Available: {key_names}")
+
+    # -- Hugging Face login if token available --
+    hf_token = os.getenv("HF_TOKEN")
+    is_hf_placeholder = any(placeholder in str(hf_token).lower() for placeholder in placeholder_values) if hf_token else True
+    if hf_token and not is_hf_placeholder:
         try:
             import logging
+            import warnings
+            # Suppress all HF hub warnings and info messages
             logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-            from huggingface_hub import login
-            login(token=os.getenv('HF_TOKEN'))
-            print("Successfully logged in to Hugging Face Hub.")
+            logging.getLogger("huggingface_hub.utils._token").setLevel(logging.ERROR)
+            logging.getLogger("huggingface_hub._login").setLevel(logging.ERROR)
+            
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Environment variable.*HF_TOKEN.*")
+                warnings.filterwarnings("ignore", message=".*Note: Environment variable.*")
+                warnings.filterwarnings("ignore", category=UserWarning)
+                from huggingface_hub import login
+                login(token=hf_token, add_to_git_credential=False)
+            print("✅ HuggingFace Hub: Logged in")
         except Exception as e:
-            print(f"Failed to login to Hugging Face Hub: {e}")
-    else:
-        print("Set HF_TOKEN in api_keys.env or in environment to login to HuggingFace Hub")
-        print("Most things should work without logging in, but some features may be limited.")
+            # Silently fail if HF login doesn't work
+            pass
 
+    # Print version (condensed)
+    try:
+        import introdl
+        print(f"📦 introdl v{introdl.__version__} ready\n")
+    except:
+        pass
+    
     return {
         'MODELS_PATH': models_path,
         'DATA_PATH': data_path,
         'CACHE_PATH': cache_path
     }
+
+
+def check_cache_usage():
+    """
+    Check disk usage of cache directories.
+    Returns a dictionary with size information.
+    """
+    import subprocess
+    from pathlib import Path
+    
+    def get_dir_size(path):
+        """Get directory size in bytes"""
+        if not path.exists():
+            return 0
+        try:
+            result = subprocess.run(['du', '-sb', str(path)], 
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                return int(result.stdout.split()[0])
+        except:
+            pass
+        return 0
+    
+    def format_size(size_bytes):
+        """Format bytes to human readable"""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} TB"
+    
+    cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+    models_path = Path(os.getenv("MODELS_PATH", "~/models")).expanduser()
+    data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+    
+    sizes = {}
+    
+    # Check cache subdirectories
+    if cache_path.exists():
+        sizes['cache_total'] = get_dir_size(cache_path)
+        sizes['pytorch_cache'] = get_dir_size(cache_path / "hub")
+        sizes['huggingface_cache'] = get_dir_size(cache_path / "huggingface")
+    else:
+        sizes['cache_total'] = 0
+        sizes['pytorch_cache'] = 0
+        sizes['huggingface_cache'] = 0
+    
+    # Check other directories
+    sizes['student_models'] = get_dir_size(models_path) if models_path.exists() else 0
+    sizes['datasets'] = get_dir_size(data_path) if data_path.exists() else 0
+    
+    # Print summary
+    print("📊 Storage Usage Summary:")
+    print("-" * 40)
+    print(f"Student Models ({models_path.name}): {format_size(sizes['student_models'])}")
+    print(f"Datasets ({data_path.name}): {format_size(sizes['datasets'])}")
+    print(f"Model Cache ({cache_path.name}): {format_size(sizes['cache_total'])}")
+    if sizes['pytorch_cache'] > 0:
+        print(f"  - PyTorch models: {format_size(sizes['pytorch_cache'])}")
+    if sizes['huggingface_cache'] > 0:
+        print(f"  - HuggingFace models: {format_size(sizes['huggingface_cache'])}")
+    print("-" * 40)
+    print(f"Total: {format_size(sum(sizes.values()))}")
+    
+    return sizes
+
+def clear_model_cache(cache_type="all", dry_run=True):
+    """
+    Clear cached pretrained models.
+    
+    Args:
+        cache_type: "all", "pytorch", "huggingface", or "datasets"
+        dry_run: If True, only show what would be deleted
+    """
+    import shutil
+    from pathlib import Path
+    
+    cache_path = Path(os.getenv("CACHE_PATH", "~/downloads")).expanduser()
+    data_path = Path(os.getenv("DATA_PATH", "~/data")).expanduser()
+    
+    paths_to_clear = []
+    
+    if cache_type in ["all", "pytorch"]:
+        pytorch_cache = cache_path / "hub"
+        if pytorch_cache.exists():
+            paths_to_clear.append(("PyTorch cache", pytorch_cache))
+    
+    if cache_type in ["all", "huggingface"]:
+        hf_cache = cache_path / "huggingface"
+        if hf_cache.exists():
+            paths_to_clear.append(("HuggingFace cache", hf_cache))
+    
+    if cache_type in ["all", "datasets"]:
+        if data_path.exists():
+            paths_to_clear.append(("Datasets", data_path))
+    
+    if dry_run:
+        print("🔍 Would delete the following:")
+        for name, path in paths_to_clear:
+            if path.exists():
+                size = check_cache_usage().get(name.lower().replace(" ", "_"), 0)
+                print(f"  - {name}: {path}")
+    else:
+        print("🗑️ Clearing cache...")
+        for name, path in paths_to_clear:
+            if path.exists():
+                print(f"  Removing {name}...")
+                shutil.rmtree(path)
+                path.mkdir(parents=True, exist_ok=True)
+        print("✅ Cache cleared!")
 
 def get_device():
     """
@@ -545,41 +1057,96 @@ def _clean_invalid_outputs(notebook_path):
     with open(notebook_path, "w", encoding="utf-8") as f:
         nbformat.write(nb, f)
 
-def convert_nb_to_html(output_filename="converted.html", notebook_path=None):
+def convert_nb_to_html(output_filename="converted.html", notebook_path=None, template="lab"):
     """
-    Convert a notebook to HTML using the JupyterLab template.
-    If notebook_path is None, uses the most recent .ipynb file in the current directory.
-    Output will be written to current directory with the given output_filename.
-    """
-    output_filename = str(output_filename)
-    if not output_filename.endswith(".html"):
-        output_filename += ".html"
+    Convert a notebook to HTML using the specified nbconvert template.
 
+    Parameters:
+        output_filename (str or Path): Name or path of the resulting HTML file.
+        notebook_path (str or Path): Path to the notebook to convert. If None, uses most recent .ipynb in cwd.
+        template (str): nbconvert template to use ("lab" or "classic"). Defaults to "lab".
+
+    Notes:
+        - Cleans up Colab/CoCalc-specific metadata (e.g., 'id', 'errorDetails', 'request').
+        - Filters out invalid outputs missing 'output_type'.
+        - Automatically falls back to 'classic' template if 'lab' fails.
+        - Final HTML is written to output_filename (supports Google Drive paths).
+    """
+
+    # If no notebook path is given, use most recent .ipynb in current directory
     if notebook_path is None:
-        notebook_path = _guess_notebook_path()
+        candidates = list(Path.cwd().glob("*.ipynb"))
+        if not candidates:
+            raise FileNotFoundError("No .ipynb files found in current directory.")
+        notebook_path = max(candidates, key=lambda f: f.stat().st_mtime)
+
+    output_filename = Path(output_filename)
+    if not output_filename.name.endswith(".html"):
+        output_filename = output_filename.with_suffix(".html")
 
     notebook_path = Path(notebook_path).resolve()
-    output_path = Path.cwd() / output_filename
+    output_dir = output_filename.parent.resolve()
+    output_name = output_filename.stem
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir) / notebook_path.name
         shutil.copy2(notebook_path, tmp_path)
         print(f"[INFO] Temporary copy created: {tmp_path}")
 
-        _clean_invalid_outputs(tmp_path)
-
+        # 🧼 Clean metadata that breaks nbconvert
         try:
-            subprocess.run(
+            nb = nbformat.read(tmp_path, as_version=4)
+
+            for cell in nb.cells:
+                # Remove invalid top-level fields
+                cell.pop("id", None)
+
+                # Clean outputs
+                if "outputs" in cell:
+                    cleaned_outputs = []
+                    for output in cell["outputs"]:
+                        if not isinstance(output, dict):
+                            continue
+                        if "output_type" not in output:
+                            # Not a valid output object — skip it
+                            continue
+                        output.pop("errorDetails", None)
+                        output.pop("request", None)
+                        if "data" in output and "application/vnd.jupyter.widget-view+json" in output["data"]:
+                            output["data"].pop("application/vnd.jupyter.widget-view+json", None)
+                        cleaned_outputs.append(output)
+                    cell["outputs"] = cleaned_outputs
+
+            # Remove broken widget metadata
+            if "metadata" in nb and "widgets" in nb["metadata"]:
+                del nb["metadata"]["widgets"]
+
+            nbformat.write(nb, tmp_path)
+        except Exception as e:
+            print(f"[WARNING] Failed to clean notebook metadata: {e}")
+
+        def run_nbconvert(tmpl):
+            return subprocess.run(
                 [
                     "jupyter", "nbconvert",
                     "--to", "html",
-                    "--template", "lab",
-                    "--output", output_path.stem,
-                    "--output-dir", str(output_path.parent),
+                    "--template", tmpl,
+                    "--output", output_name,
+                    "--output-dir", str(output_dir),
                     str(tmp_path)
                 ],
-                check=True
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
-            print(f"[SUCCESS] HTML export complete: {output_path}")
-        except subprocess.CalledProcessError as e:
-            print("[ERROR] Conversion failed:", e)
+
+        # 🧪 Try nbconvert with the specified template, fallback to classic if it fails
+        result = run_nbconvert(template)
+        if result.returncode != 0:
+            print(f"[WARNING] nbconvert with template '{template}' failed. Retrying with 'classic'...")
+            result = run_nbconvert("classic")
+
+        if result.returncode == 0:
+            print(f"[SUCCESS] HTML export complete: {output_dir / output_filename.name}")
+        else:
+            print("[ERROR] nbconvert failed:\n", result.stderr)

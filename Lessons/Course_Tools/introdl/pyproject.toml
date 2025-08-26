@@ -29,6 +29,7 @@ dependencies = [
     "openai>=1.65.5",
     "pandas",
     "protobuf",
+    "pycocotools",
     "pyperclip",
     "rapidfuzz",
     "rouge_score",

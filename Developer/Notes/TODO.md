@@ -46,13 +46,17 @@
 - [x] **Updated AI use policy in Lesson 1** - Added comprehensive policy to L01_1_Class_and_Lesson_Intro.ipynb
 - [x] **Revised AI use section in syllabus** - Aligned with Lesson 1 policy updates
 - [x] **Added syllabus questions to HW1** - 3 questions about deadlines, AI policy, and getting help
+- [x] **Created Canvas Course Updates HTML** - Fall 2025 updates page ready for posting
+- [x] **Created README.md** - Repository documentation for local setup
+- [x] **Resolved Ashley directory access** - Fixed by restarting VSCode
+- [x] **Created notebook execution script** - run_all_lesson_notebooks.py with background execution
 
 #### REMAINING PRIORITY TASKS FOR TODAY
-1. **Redo "Getting Started in CoCalc and Canvas" video** - Replace existing Canvas video
-2. **Sync updated HW and Lessons to CoCalc** - Ensure all changes are deployed
-3. **Revise Canvas announcements** - Update for course launch
-4. **Investigate Developer/Ashley access issue** - Fix file system permissions/readability
-5. **Create script to run all Lesson notebooks** - Execute and save outputs before sharing
+1. **Execute notebook script** - Run: `bash Developer/Scripts/run_notebooks_background.sh`
+2. **Post Canvas Course Updates page** - HTML created in Developer/Canvas_Course_Updates_Fall_2025.html
+3. **Sync updated HW and Lessons to CoCalc** - After notebooks complete (2-3 hours)
+4. **Revise Canvas announcements** - Update for course launch
+5. **Redo "Getting Started in CoCalc and Canvas" video** - Replace existing Canvas video (lower priority)
 
 #### WORKFLOW REMINDER
 - Work on development branch locally

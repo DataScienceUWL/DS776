@@ -11,8 +11,11 @@ import matplotlib.pyplot as plt
 import time
 from introdl.utils import load_model, load_results
 
+# Suppress tqdm experimental warning
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="tqdm.autonotebook")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*experimental.*")
+warnings.filterwarnings("ignore", message=".*tqdm.autonotebook.*")
 from tqdm.autonotebook import tqdm
 
 # Set Seaborn theme
@@ -112,8 +115,8 @@ def run_epoch(model, optimizer, data_loader, loss_func, device, results, score_f
                         f"lr_schedule.total_steps={lr_schedule.total_steps}."
                     )
         
-        # Store loss
-        running_loss.append(loss.item())
+        # Store loss (detach to avoid gradient warning)
+        running_loss.append(loss.detach().item())
 
         if score_funcs is not None and len(score_funcs) > 0 and isinstance(labels, torch.Tensor):
             # Move labels & predictions back to CPU for processing and metric calculation

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms.v2 as transforms
 import sys
@@ -55,162 +55,6 @@ import os
 import sys
 from pathlib import Path
 
-# def detect_jupyter_environment():
-#     """
-#     Detects the Jupyter environment and returns one of:
-#     - "colab": Running in official Google Colab
-#     - "vscode": Running in VSCode
-#     - "cocalc": Running inside the CoCalc frontend
-#     - "cocalc_compute_server": Running on a compute server (e.g., GCP or Hyperstack) launched from CoCalc
-#     - "paperspace": Running in a Paperspace notebook
-#     - "unknown": Environment not recognized
-#     """
-    
-#     # Check for CoCalc frontend (browser UI)
-#     if 'COCALC_CODE_PORT' in os.environ:
-#         return "cocalc"
-    
-#     # Check for CoCalc Compute Server (GCP or Hyperstack)
-#     # CoCalc compute servers do NOT set COCALC_CODE_PORT, but do provision ~/cs_workspace
-#     if Path.home().joinpath("cs_workspace").exists():
-#         return "cocalc_compute_server"
-
-#     # Check for official Google Colab
-#     if 'google.colab' in sys.modules:
-#         if 'COLAB_RELEASE_TAG' in os.environ or 'COLAB_GPU' in os.environ:
-#             return "colab"
-
-#     # Check for VSCode
-#     if 'VSCODE_PID' in os.environ:
-#         return "vscode"
-
-#     # Check for Paperspace
-#     if 'PAPERSPACE_NOTEBOOK_ID' in os.environ:
-#         return "paperspace"
-
-#     # Fallback
-#     return "unknown"
-
-# def config_paths_keys(env_path="~/Lessons/Course_Tools/local.env", api_keys_env="~/Lessons/Course_Tools/api_keys.env"):
-#     """
-#     Reads environment variables and sets paths.
-
-#     If running in Colab, sets hardcoded /content/temp_workspace paths.
-#     Otherwise uses dotenv to load based on environment:
-#     - CoCalc: ~/Lessons/Course_Tools/cocalc.env
-#     - Local: ~/Lessons/Course_Tools/local.env
-
-#     Also loads API keys from api_keys.env if HF_TOKEN or OPENAI_API_KEY are not already set.
-
-#     Returns:
-#         dict: A dictionary with keys 'MODELS_PATH', 'DATA_PATH', and 'CACHE_PATH'.
-#     """
-
-#     environment = detect_jupyter_environment()
-
-#     if environment == "colab":
-#         # Set Colab-specific paths
-#         base_path = Path("/content/temp_workspace")
-#         data_path = base_path / "data"
-#         models_path = base_path / "models"
-#         cache_path = base_path / "downloads"
-
-#         # Set environment variables
-#         os.environ['DATA_PATH'] = str(data_path)
-#         os.environ['MODELS_PATH'] = str(models_path)
-#         os.environ['CACHE_PATH'] = str(cache_path)
-#         os.environ['TORCH_HOME'] = str(cache_path)
-#         os.environ['HF_HOME'] = str(cache_path)
-#         os.environ['HF_DATASETS_CACHE'] = str(data_path)
-#         os.environ['TQDM_NOTEBOOK'] = "true"
-
-#         # Create the directories
-#         for path in [data_path, models_path, cache_path]:
-#             path.mkdir(parents=True, exist_ok=True)
-
-#         print("[INFO] Environment: colab")
-#         print(f"DATA_PATH={data_path}")
-#         print(f"MODELS_PATH={models_path}")
-#         print(f"CACHE_PATH={cache_path}")
-
-#     else:
-#         # Load local.env or environment-specific default
-#         home_local_env = Path.home() / "local.env"
-#         if home_local_env.exists():
-#             env_file = home_local_env
-#         else:
-#             env_file = Path(env_path).expanduser()
-
-#             if not env_file.exists():
-#                 # Auto-choose based on environment
-#                 if environment == "cocalc_compute_server":
-#                     env_file = Path("~/Lessons/Course_Tools/cocalc_compute_server.env").expanduser()
-#                 elif environment == "cocalc":
-#                     env_file = Path("~/Lessons/Course_Tools/cocalc.env").expanduser()
-#                 elif environment == "colab":
-#                     env_file = Path("~/Lessons/Course_Tools/google_colab.env").expanduser()
-#                 else:
-#                     env_file = Path("~/Lessons/Course_Tools/local.env").expanduser()
-
-#         if env_file.exists():
-#             load_dotenv(env_file, override=False)
-#             print(f"Loaded environment variables from: {env_file}")
-#         else:
-#             print(f"Warning: environment file not found at {env_file}")
-
-#         # Retrieve and set paths
-#         models_path = Path(os.getenv("MODELS_PATH", "")).expanduser()
-#         data_path = Path(os.getenv("DATA_PATH", "")).expanduser()
-#         cache_path = Path(os.getenv("CACHE_PATH", "")).expanduser()
-
-#         os.environ["TORCH_HOME"] = str(cache_path)
-#         os.environ["HF_HOME"] = str(cache_path)
-#         os.environ["HF_DATASETS_CACHE"] = str(data_path)
-
-#         for path in [models_path, data_path, cache_path]:
-#             if not path.exists():
-#                 path.mkdir(parents=True, exist_ok=True)
-
-#         print(f"MODELS_PATH={models_path}")
-#         print(f"DATA_PATH={data_path}")
-#         print(f"CACHE_PATH={cache_path}")
-
-#     # 🔐 Load API keys (colab-aware)
-#     api_keys_file = None
-#     home_api_keys_file = Path.home() / "api_keys.env"
-#     colab_api_keys_file = Path("/content/drive/MyDrive/Colab Notebooks/api_keys.env")
-
-#     if home_api_keys_file.exists():
-#         api_keys_file = home_api_keys_file
-#     elif environment == "colab" and colab_api_keys_file.exists():
-#         api_keys_file = colab_api_keys_file
-#     elif api_keys_env:
-#         api_keys_file = Path(api_keys_env).expanduser()
-
-#     if api_keys_file and api_keys_file.exists():
-#         load_dotenv(api_keys_file, override=False)
-#         print(f"Loaded API keys from: {api_keys_file}")
-#     else:
-#         print(f"Warning: API keys file not found. Looked in {home_api_keys_file} and {colab_api_keys_file}")
-
-#     # 🔐 Login to Hugging Face
-#     if os.getenv("HF_TOKEN"):
-#         try:
-#             import logging
-#             logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-#             from huggingface_hub import login
-#             login(token=os.getenv("HF_TOKEN"))
-#             print("Successfully logged in to Hugging Face Hub.")
-#         except Exception as e:
-#             print(f"Failed to login to Hugging Face Hub: {e}")
-#     else:
-#         print("Set HF_TOKEN in api_keys.env or in the environment to login to Hugging Face Hub")
-
-#     return {
-#         'MODELS_PATH': models_path,
-#         'DATA_PATH': data_path,
-#         'CACHE_PATH': cache_path
-#     }
 
 def detect_jupyter_environment():
     """
@@ -308,19 +152,19 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         try:
             if parent_dir.startswith("Lesson_"):
                 # Extract lesson number from directory name
-                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_07_models"
+                # e.g., "Lesson_07_Transformers_Intro" -> "Lesson_07_Models"
                 parts = parent_dir.split("_")
                 if len(parts) >= 2 and parts[1].isdigit():
                     lesson_num = parts[1]  # Keep zero-padding
-                    local_models_dir = cwd / f"Lesson_{lesson_num}_models"
+                    local_models_dir = cwd / f"Lesson_{lesson_num}_Models"
                     
             elif parent_dir.startswith("Homework_"):
                 # Extract homework number from directory name
-                # e.g., "Homework_07" -> "Homework_07_models"
+                # e.g., "Homework_07" -> "Homework_07_Models"
                 parts = parent_dir.split("_")
                 if len(parts) >= 2 and parts[1].isdigit():
                     hw_num = parts[1]  # Keep zero-padding
-                    local_models_dir = cwd / f"Homework_{hw_num}_models"
+                    local_models_dir = cwd / f"Homework_{hw_num}_Models"
             
             if local_models_dir:
                 # Create the directory if it doesn't exist
