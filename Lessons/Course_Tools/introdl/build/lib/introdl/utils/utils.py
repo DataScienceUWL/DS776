@@ -460,6 +460,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         if colab_path.exists():
             api_keys_file = colab_path
     
+    # Debug output if requested via environment variable
+    if os.environ.get('DEBUG_API_KEYS', '').lower() == 'true':
+        print(f"🔍 DEBUG: API key file search:")
+        print(f"   Found file: {api_keys_file if api_keys_file else 'None'}")
+        if api_keys_file:
+            print(f"   File exists: {api_keys_file.exists()}")
+    
     if api_keys_file and api_keys_file.exists():
         # Load API keys but don't override existing environment variables
         # This respects the priority: env vars > file values
@@ -487,13 +494,19 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         
         # Condensed API key loading message
         if valid_keys > 0:
-            # Show where keys were loaded from
-            if "home_workspace" in str(api_keys_file):
-                location = "home_workspace/api_keys.env"
-            elif api_keys_file.parent == Path.home():
-                location = "~/api_keys.env"
-            else:
-                location = api_keys_file.name
+            # Show where keys were loaded from with accurate path
+            try:
+                # Try to show relative path from home
+                rel_path = api_keys_file.relative_to(Path.home())
+                location = f"~/{rel_path}"
+            except ValueError:
+                # If not under home, show the full path
+                if "home_workspace" in str(api_keys_file):
+                    location = "home_workspace/api_keys.env"
+                elif api_keys_file.parent == Path.home():
+                    location = "~/api_keys.env"
+                else:
+                    location = str(api_keys_file)
             print(f"🔑 API keys: {valid_keys} loaded from {location}")
 
     # -- List loaded API keys (condensed) --
