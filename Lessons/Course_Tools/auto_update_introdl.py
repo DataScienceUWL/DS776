@@ -42,6 +42,14 @@ def main():
     # Check if introdl source exists
     if not introdl_dir.exists():
         print_error(f"introdl source not found at {introdl_dir}")
+        print("")
+        print_info("This usually means you don't have the complete course files.")
+        print_info("Solutions:")
+        print_info("1. Download the complete DS776 course repository from GitHub")
+        print_info("2. Make sure you have the Lessons/Course_Tools/introdl directory")
+        print_info("3. Set DS776_ROOT_DIR to your course directory if using local setup")
+        print("")
+        print_info("If you're in CoCalc, contact the instructor - the files may not be synced.")
         sys.exit(1)
     
     # Get source version from __init__.py
