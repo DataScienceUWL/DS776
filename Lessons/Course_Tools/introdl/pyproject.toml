@@ -43,7 +43,7 @@ dependencies = [
     "torch",
     "torchinfo",
     "torchmetrics",
-    "torchvision",
+    "torchvision>=0.15.0",
     "tqdm",
     "transformers>=4.49.0",
     "ultralytics"

@@ -36,7 +36,7 @@ Requires-Dist: timm
 Requires-Dist: torch
 Requires-Dist: torchinfo
 Requires-Dist: torchmetrics
-Requires-Dist: torchvision
+Requires-Dist: torchvision>=0.15.0
 Requires-Dist: tqdm
 Requires-Dist: transformers>=4.49.0
 Requires-Dist: ultralytics
