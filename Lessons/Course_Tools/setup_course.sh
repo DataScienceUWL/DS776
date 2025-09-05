@@ -28,11 +28,26 @@ echo ""
 echo "📦 Step 1: Installing introdl package..."
 echo "=========================================="
 
-# Find the introdl package
-INTRODL_DIR="$COURSE_ROOT/Lessons/Course_Tools/introdl"
+# Find the introdl package - try multiple possible locations
+INTRODL_DIR=""
 
-if [ -d "$INTRODL_DIR" ]; then
-    echo "Found introdl package at: $INTRODL_DIR"
+# Option 1: Relative to script location (when run from Course_Tools)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -d "$SCRIPT_DIR/introdl" ]; then
+    INTRODL_DIR="$SCRIPT_DIR/introdl"
+    echo "Found introdl package at: $INTRODL_DIR (relative to script)"
+# Option 2: Based on detected course root
+elif [ -d "$COURSE_ROOT/Lessons/Course_Tools/introdl" ]; then
+    INTRODL_DIR="$COURSE_ROOT/Lessons/Course_Tools/introdl"
+    echo "Found introdl package at: $INTRODL_DIR (course root based)"
+# Option 3: Current directory (fallback)
+elif [ -d "./introdl" ]; then
+    INTRODL_DIR="./introdl"
+    echo "Found introdl package at: $INTRODL_DIR (current directory)"
+fi
+
+if [ -n "$INTRODL_DIR" ] && [ -d "$INTRODL_DIR" ]; then
+    echo "✅ Using introdl package at: $INTRODL_DIR"
     
     # Uninstall existing package if present
     echo "Removing any existing introdl installation..."
