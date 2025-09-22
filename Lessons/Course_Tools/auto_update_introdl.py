@@ -128,10 +128,10 @@ def main():
         except:
             pass
         
-        # Install fresh
+        # Install fresh with force reinstall and upgrade to ensure update
         try:
             result = subprocess.run([
-                sys.executable, "-m", "pip", "install", str(introdl_dir), "--quiet"
+                sys.executable, "-m", "pip", "install", str(introdl_dir), "--force-reinstall", "--upgrade", "--quiet"
             ], capture_output=True, text=True)
             
             if result.returncode == 0:

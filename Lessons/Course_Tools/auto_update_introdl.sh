@@ -106,8 +106,8 @@ if [ "$NEEDS_UPDATE" = true ]; then
     # Uninstall existing
     pip uninstall introdl -y --quiet 2>/dev/null
     
-    # Install fresh
-    if pip install "$INTRODL_DIR" --quiet 2>/dev/null; then
+    # Install fresh with force reinstall and upgrade to ensure update
+    if pip install "$INTRODL_DIR" --force-reinstall --upgrade --quiet 2>/dev/null; then
         print_status "Installation successful!"
         
         # Test the installation
