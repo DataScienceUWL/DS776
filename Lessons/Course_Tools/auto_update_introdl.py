@@ -10,6 +10,7 @@ import sys
 import os
 from pathlib import Path
 import json
+import re
 
 # Global verbose flag
 verbose = False
@@ -34,6 +35,53 @@ def print_warning(message):
 
 def print_error(message):
     print_colored("❌", message, "0;31")
+
+def get_installed_version():
+    """Get the installed version without importing the module (faster and avoids timeout)."""
+    try:
+        # Use pip to find where introdl is installed
+        result = subprocess.run([
+            sys.executable, "-m", "pip", "show", "introdl"
+        ], capture_output=True, text=True, timeout=5)
+
+        if result.returncode != 0:
+            return None, None
+
+        # Parse the output to get location and version
+        location = None
+        version = None
+        for line in result.stdout.split('\n'):
+            if line.startswith('Location:'):
+                location = line.split(':', 1)[1].strip()
+            elif line.startswith('Version:'):
+                version = line.split(':', 1)[1].strip()
+
+        if location and version:
+            # Verify the version by reading __init__.py directly
+            init_file = Path(location) / "introdl" / "__init__.py"
+            if init_file.exists():
+                try:
+                    with open(init_file, 'r') as f:
+                        for line in f:
+                            if '__version__' in line and '=' in line:
+                                match = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]', line)
+                                if match:
+                                    file_version = match.group(1)
+                                    # Use the version from the file if found
+                                    if file_version:
+                                        version = file_version
+                                    break
+                except:
+                    pass  # Use pip version if we can't read the file
+
+            return version, location
+
+        return None, None
+
+    except Exception as e:
+        if verbose:
+            print_error(f"Error checking installation: {e}")
+        return None, None
 
 def main():
     global verbose
@@ -73,7 +121,6 @@ def main():
                 for line in f:
                     if '__version__' in line and '=' in line:
                         # Extract version string more carefully
-                        import re
                         match = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]', line)
                         if match:
                             source_version = match.group(1)
@@ -88,48 +135,14 @@ def main():
     if verbose:
         print("📦 Source version: {}".format(source_version))
 
-    # Check installed version
-    installed_version = None
+    # Check installed version (fast method without importing)
+    installed_version, install_location = get_installed_version()
 
-    # First check with pip (only in verbose mode)
-    if verbose:
-        pip_check = subprocess.run([
-            sys.executable, "-m", "pip", "show", "introdl"
-        ], capture_output=True, text=True)
-
-        if pip_check.returncode == 0:
-            # Parse pip show output
-            pip_version = None
-            pip_location = None
-            for line in pip_check.stdout.split('\n'):
-                if line.startswith('Version:'):
-                    pip_version = line.split(':', 1)[1].strip()
-                elif line.startswith('Location:'):
-                    pip_location = line.split(':', 1)[1].strip()
-
-            if pip_version:
-                print_info(f"pip reports introdl version {pip_version} at {pip_location}")
-
-    # Try to import it using subprocess (avoids triggering warnings in this process)
-    try:
-        result = subprocess.run([
-            sys.executable, "-c",
-            "try: import introdl; print(introdl.__version__ if hasattr(introdl, '__version__') else 'unknown')\nexcept: print('not_installed')"
-        ], capture_output=True, text=True, timeout=5)
-
-        if result.returncode == 0 and result.stdout.strip() != 'not_installed':
-            installed_version = result.stdout.strip()
-            if verbose:
-                print_status(f"Installed version: {installed_version}")
-        else:
-            installed_version = None
-            if verbose:
-                print_warning("introdl not installed or not importable")
-
-    except Exception as e:
-        installed_version = None
-        if verbose:
-            print_error(f"Error checking installation: {e}")
+    if verbose and installed_version:
+        print_status(f"Installed version: {installed_version}")
+        print_info(f"Location: {install_location}")
+    elif verbose:
+        print_warning("introdl not installed or not detectable")
 
     # Version comparison logic
     needs_update = False
@@ -149,8 +162,6 @@ def main():
     else:
         # Already up to date - only show this message
         print_status(f"introdl v{installed_version} already up to date")
-
-    # Skip path conflict check since we're not getting install_location anymore
 
     # Install/update if needed
     if needs_update:
@@ -239,49 +250,21 @@ def main():
                 if verbose:
                     print_info("Verifying installation...")
 
-                # Check if module can be imported at all
-                import_check = subprocess.run([
-                    sys.executable, "-c", "import introdl; print('Import successful')"
-                ], capture_output=True, text=True)
+                # Check the installed version using our fast method
+                new_version, new_location = get_installed_version()
 
-                if import_check.returncode != 0:
-                    print_warning("Cannot import introdl after installation")
-                    if verbose:
-                        print_info(f"Import error: {import_check.stderr.strip()}")
-
-                    # Try to find where it was installed (verbose only)
-                    if verbose:
-                        pip_show = subprocess.run([
-                            sys.executable, "-m", "pip", "show", "introdl"
-                        ], capture_output=True, text=True)
-
-                        if pip_show.returncode == 0:
-                            print_info("Package is installed according to pip:")
-                            for line in pip_show.stdout.split('\n')[:5]:
-                                if line.strip():
-                                    print_info(f"  {line.strip()}")
-                        else:
-                            print_error("Package not found by pip show")
-
-                else:
-                    # Import successful, check version
-                    version_check = subprocess.run([
-                        sys.executable, "-c", "import introdl; print(introdl.__version__)"
-                    ], capture_output=True, text=True)
-
-                    if version_check.returncode == 0:
-                        new_version = version_check.stdout.strip()
-                        if new_version == source_version:
-                            print_status(f"Successfully updated to introdl v{new_version}")
-                        else:
-                            print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
-                            print_info("Try restarting the kernel and running again", force=True)
+                if new_version:
+                    if new_version == source_version:
+                        print_status(f"Successfully updated to introdl v{new_version}")
+                    else:
+                        print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
+                        print_info("Try restarting the kernel and running again", force=True)
 
                     # Test the installation (verbose only)
                     if verbose:
                         test_result = subprocess.run([
                             sys.executable, "-c", "from introdl.utils import config_paths_keys; print('Works!')"
-                        ], capture_output=True, text=True)
+                        ], capture_output=True, text=True, timeout=30)
 
                         if test_result.returncode == 0:
                             print_status("Installation verified - introdl.utils imports correctly")
@@ -289,6 +272,8 @@ def main():
                             print_warning("Installation succeeded but imports may need kernel restart")
                             if test_result.stderr:
                                 print_info(f"Import error: {test_result.stderr.strip()}")
+                else:
+                    print_warning("Cannot verify installation - may need kernel restart")
 
                 print("\n🔄 IMPORTANT: Restart your kernel and run this cell again!")
                 print("=" * 57)
@@ -322,13 +307,13 @@ def main():
             sys.exit(1)
 
     # Quick health checks (only if no update was needed and in verbose mode)
-    if verbose:
+    if verbose and not needs_update:
         print("\n🔧 Quick health check...")
 
         # Check introdl.utils import
         try:
             subprocess.run([sys.executable, "-c", "from introdl.utils import config_paths_keys"],
-                          capture_output=True, text=True, check=True)
+                          capture_output=True, text=True, check=True, timeout=30)
             print_status("introdl.utils imports correctly")
         except:
             print_error("introdl.utils import failed - may need kernel restart")
@@ -360,7 +345,6 @@ def main():
         # Check for newer version on GitHub (if network available)
         try:
             import urllib.request
-            import re
 
             # Get GitHub repo URL
             result = subprocess.run(
