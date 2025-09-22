@@ -48,8 +48,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.12"
+__version__ = "1.5.13"
 # Version history:
+# 1.5.13 - Improved package detection by directly checking site-packages directories
 # 1.5.12 - Fixed timeout issues in auto_update by using pip show instead of importing module
 # 1.5.11 - Optimized auto_update script for faster execution when no update needed
 # 1.5.10 - Fixed warning filter for AttributeError (not a Warning subclass)

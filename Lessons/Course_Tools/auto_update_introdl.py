@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import json
 import re
+import site
 
 # Global verbose flag
 verbose = False
@@ -39,26 +40,21 @@ def print_error(message):
 def get_installed_version():
     """Get the installed version without importing the module (faster and avoids timeout)."""
     try:
-        # Use pip to find where introdl is installed
-        result = subprocess.run([
-            sys.executable, "-m", "pip", "show", "introdl"
-        ], capture_output=True, text=True, timeout=5)
+        # First try to directly read from common installation locations
+        possible_locations = [
+            Path(site.getusersitepackages()),  # User site-packages
+            Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+            Path(sys.prefix) / "local" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        ]
 
-        if result.returncode != 0:
-            return None, None
+        # Add any paths from sys.path that contain site-packages
+        for p in sys.path:
+            if 'site-packages' in p and Path(p).exists():
+                possible_locations.append(Path(p))
 
-        # Parse the output to get location and version
-        location = None
-        version = None
-        for line in result.stdout.split('\n'):
-            if line.startswith('Location:'):
-                location = line.split(':', 1)[1].strip()
-            elif line.startswith('Version:'):
-                version = line.split(':', 1)[1].strip()
-
-        if location and version:
-            # Verify the version by reading __init__.py directly
-            init_file = Path(location) / "introdl" / "__init__.py"
+        # Check each location for introdl
+        for location in possible_locations:
+            init_file = location / "introdl" / "__init__.py"
             if init_file.exists():
                 try:
                     with open(init_file, 'r') as f:
@@ -66,15 +62,54 @@ def get_installed_version():
                             if '__version__' in line and '=' in line:
                                 match = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]', line)
                                 if match:
-                                    file_version = match.group(1)
-                                    # Use the version from the file if found
-                                    if file_version:
-                                        version = file_version
-                                    break
+                                    version = match.group(1)
+                                    if verbose:
+                                        print_info(f"Found introdl in {location}")
+                                    return version, str(location)
                 except:
-                    pass  # Use pip version if we can't read the file
+                    continue
 
-            return version, location
+        # Fallback to pip show if direct search fails (with longer timeout)
+        try:
+            result = subprocess.run([
+                sys.executable, "-m", "pip", "show", "introdl"
+            ], capture_output=True, text=True, timeout=15)  # Increased timeout
+
+            if result.returncode == 0:
+                # Parse the output to get location and version
+                location = None
+                version = None
+                for line in result.stdout.split('\n'):
+                    if line.startswith('Location:'):
+                        location = line.split(':', 1)[1].strip()
+                    elif line.startswith('Version:'):
+                        version = line.split(':', 1)[1].strip()
+
+                if location and version:
+                    # Verify the version by reading __init__.py directly
+                    init_file = Path(location) / "introdl" / "__init__.py"
+                    if init_file.exists():
+                        try:
+                            with open(init_file, 'r') as f:
+                                for line in f:
+                                    if '__version__' in line and '=' in line:
+                                        match = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]', line)
+                                        if match:
+                                            file_version = match.group(1)
+                                            # Use the version from the file if found
+                                            if file_version:
+                                                version = file_version
+                                            break
+                        except:
+                            pass  # Use pip version if we can't read the file
+
+                    return version, location
+        except subprocess.TimeoutExpired:
+            if verbose:
+                print_warning("pip show timed out, package may still be installed")
+        except Exception as e:
+            if verbose:
+                print_info(f"pip show failed: {e}")
 
         return None, None
 
@@ -251,7 +286,12 @@ def main():
                     print_info("Verifying installation...")
 
                 # Check the installed version using our fast method
-                new_version, new_location = get_installed_version()
+                try:
+                    new_version, new_location = get_installed_version()
+                except Exception as e:
+                    if verbose:
+                        print_info(f"Error verifying installation: {e}")
+                    new_version = None
 
                 if new_version:
                     if new_version == source_version:
