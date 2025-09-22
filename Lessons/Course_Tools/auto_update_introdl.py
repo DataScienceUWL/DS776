@@ -143,13 +143,44 @@ def main():
             # pip cache command might not be available in older versions
             pass
 
+        # Verify the source directory structure before installing
+        print_info("Verifying source directory...")
+        src_init = introdl_dir / "src" / "introdl" / "__init__.py"
+        if src_init.exists():
+            print_status(f"Source __init__.py found at: {src_init}")
+            # Double-check version in source
+            with open(src_init, 'r') as f:
+                for line in f:
+                    if '__version__' in line:
+                        print_info(f"Source file contains: {line.strip()}")
+                        break
+        else:
+            print_error(f"Source __init__.py not found at expected location: {src_init}")
+
+        # Check if setup.py or pyproject.toml exists
+        setup_py = introdl_dir / "setup.py"
+        pyproject = introdl_dir / "pyproject.toml"
+        if setup_py.exists():
+            print_status("Found setup.py")
+        if pyproject.exists():
+            print_status("Found pyproject.toml")
+
         # Install fresh - use no-cache-dir to prevent using cached version
         print_info("Installing new version (bypassing cache)...")
+        print_info(f"Installing from: {introdl_dir}")
         try:
             # Use no-cache-dir to force pip to use the actual source files
+            # Remove -v flag as it might cause issues, but keep output for debugging
             result = subprocess.run([
                 sys.executable, "-m", "pip", "install", str(introdl_dir), "--no-cache-dir", "--upgrade"
             ], capture_output=True, text=True)
+
+            # Show what pip is doing (first few lines)
+            if result.stdout:
+                output_lines = result.stdout.split('\n')[:5]
+                for line in output_lines:
+                    if line.strip():
+                        print_info(f"pip: {line.strip()}")
             
             if result.returncode == 0:
                 print_status("Installation command completed")

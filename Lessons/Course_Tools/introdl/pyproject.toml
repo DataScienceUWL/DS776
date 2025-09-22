@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "introdl"
-version = "1.4.2"
+dynamic = ["version"]
 description = "Introductory Deep Learning Package"
 authors = [
     { name = "Your Name", email = "you@example.com" }
@@ -53,3 +53,6 @@ dependencies = [
 [tool.setuptools]
 package-dir = {"" = "src"}  # Tell setuptools where to find your packages
 packages = {find = {where = ["src"]}}  # Use find directive for package discovery
+
+[tool.setuptools.dynamic]
+version = {attr = "introdl.__version__"}  # Get version from __init__.py
