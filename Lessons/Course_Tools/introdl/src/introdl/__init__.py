@@ -48,8 +48,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.10"
+__version__ = "1.5.11"
 # Version history:
+# 1.5.11 - Optimized auto_update script for faster execution when no update needed
 # 1.5.10 - Fixed warning filter for AttributeError (not a Warning subclass)
 # 1.5.9 - Added comprehensive warning suppression for TensorFlow/CUDA/protobuf messages
 # 1.5.8 - Fixed import-time error in summarization.py by lazy-loading evaluate metrics

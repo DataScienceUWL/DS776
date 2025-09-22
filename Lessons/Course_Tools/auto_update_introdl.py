@@ -40,6 +40,12 @@ def main():
     # Check for verbose flag
     verbose = '--verbose' in sys.argv or '-v' in sys.argv
 
+    # Quick exit if user wants to skip the check
+    if os.environ.get('SKIP_INTRODL_CHECK', '').lower() in ('1', 'true', 'yes'):
+        if verbose:
+            print("Skipping introdl check (SKIP_INTRODL_CHECK is set)")
+        return
+
     # Determine the course root directory
     script_dir = Path(__file__).parent.absolute()
     course_root = script_dir.parent.parent
@@ -82,9 +88,8 @@ def main():
     if verbose:
         print("📦 Source version: {}".format(source_version))
 
-    # Check installed version with detailed diagnostics
+    # Check installed version
     installed_version = None
-    install_location = None
 
     # First check with pip (only in verbose mode)
     if verbose:
@@ -105,30 +110,26 @@ def main():
             if pip_version:
                 print_info(f"pip reports introdl version {pip_version} at {pip_location}")
 
-    # Now try to import it
+    # Try to import it using subprocess (avoids triggering warnings in this process)
     try:
         result = subprocess.run([
-            sys.executable, "-c", "import introdl; print(introdl.__file__); print(getattr(introdl, '__version__', 'unknown'))"
-        ], capture_output=True, text=True)
+            sys.executable, "-c",
+            "try: import introdl; print(introdl.__version__ if hasattr(introdl, '__version__') else 'unknown')\nexcept: print('not_installed')"
+        ], capture_output=True, text=True, timeout=5)
 
-        if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')
-            if len(lines) >= 2:
-                install_location = lines[0]
-                installed_version = lines[1]
-                if verbose:
-                    print_status(f"Installed version: {installed_version}")
-                    print_info(f"Location: {install_location}")
+        if result.returncode == 0 and result.stdout.strip() != 'not_installed':
+            installed_version = result.stdout.strip()
+            if verbose:
+                print_status(f"Installed version: {installed_version}")
         else:
-            # Import failed, show why only in verbose mode
-            if verbose and result.stderr:
-                print_warning(f"Cannot import introdl: {result.stderr.strip()}")
+            installed_version = None
+            if verbose:
+                print_warning("introdl not installed or not importable")
+
     except Exception as e:
+        installed_version = None
         if verbose:
             print_error(f"Error checking installation: {e}")
-
-    if not installed_version and verbose:
-        print_warning("introdl not installed or not importable")
 
     # Version comparison logic
     needs_update = False
@@ -149,11 +150,7 @@ def main():
         # Already up to date - only show this message
         print_status(f"introdl v{installed_version} already up to date")
 
-    # Check if using local source (path conflict issue)
-    if install_location and "Course_Tools" in install_location:
-        if verbose:
-            print_warning("Detected path conflict - using local source instead of installed package")
-        needs_update = True
+    # Skip path conflict check since we're not getting install_location anymore
 
     # Install/update if needed
     if needs_update:
@@ -336,19 +333,21 @@ def main():
         except:
             print_error("introdl.utils import failed - may need kernel restart")
 
-    # Check workspace setup (always)
-    home_workspace = course_root / "home_workspace"
-    home_workspace.mkdir(parents=True, exist_ok=True)
+    # Only do workspace setup if we did an update or in verbose mode
+    if needs_update or verbose:
+        # Check workspace setup
+        home_workspace = course_root / "home_workspace"
+        home_workspace.mkdir(parents=True, exist_ok=True)
 
-    # Check API keys file (silent unless missing)
-    api_keys_file = home_workspace / "api_keys.env"
-    if not api_keys_file.exists():
-        api_keys_template = script_dir / "api_keys.env"
-        if api_keys_template.exists():
-            import shutil
-            shutil.copy2(api_keys_template, api_keys_file)
-            print_info("Created API keys template at home_workspace/api_keys.env", force=True)
-            print("📝 Remember to add your actual API keys for Lessons 7+")
+        # Check API keys file (silent unless missing)
+        api_keys_file = home_workspace / "api_keys.env"
+        if not api_keys_file.exists():
+            api_keys_template = script_dir / "api_keys.env"
+            if api_keys_template.exists():
+                import shutil
+                shutil.copy2(api_keys_template, api_keys_file)
+                print_info("Created API keys template at home_workspace/api_keys.env", force=True)
+                print("📝 Remember to add your actual API keys for Lessons 7+")
         else:
             print_warning("API keys template not found")
     elif verbose:
