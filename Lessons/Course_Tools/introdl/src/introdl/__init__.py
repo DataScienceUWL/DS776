@@ -20,7 +20,6 @@ warnings.filterwarnings('ignore', message='.*cuDNN.*')
 warnings.filterwarnings('ignore', message='.*cuBLAS.*')
 
 # Suppress protobuf warnings (common with TensorFlow/PyTorch conflicts)
-warnings.filterwarnings('ignore', category=AttributeError)
 warnings.filterwarnings('ignore', module='google.protobuf')
 
 # Suppress logging warnings
@@ -49,8 +48,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.9"
+__version__ = "1.5.10"
 # Version history:
+# 1.5.10 - Fixed warning filter for AttributeError (not a Warning subclass)
 # 1.5.9 - Added comprehensive warning suppression for TensorFlow/CUDA/protobuf messages
 # 1.5.8 - Fixed import-time error in summarization.py by lazy-loading evaluate metrics
 # 1.5.7 - Improved parameter interaction clarity and best epoch tracking when resuming
