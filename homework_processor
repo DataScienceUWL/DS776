@@ -1,0 +1,103 @@
+#!/bin/bash
+# /homework_processor command for DS776 - Enhanced with AI grading
+#
+# Usage: /homework_processor <submission_directory> [options]
+# Examples:
+#   /homework_processor DS776/Developer/Submissions/Homework_01
+#   /homework_processor DS776/Developer/Submissions/Homework_01 --use-ai
+#   /homework_processor DS776/Developer/Submissions/Homework_01 --use-ai --test-mode
+
+# Check if argument provided
+if [ $# -eq 0 ]; then
+    echo "Usage: /homework_processor <submission_directory> [options]"
+    echo ""
+    echo "Options:"
+    echo "  --use-ai      Enable AI-powered grading with Gemini (recommended)"
+    echo "  --test-mode   Process only first 3 submissions (for testing)"
+    echo ""
+    echo "Examples:"
+    echo "  Basic processing (completion check only):"
+    echo "    /homework_processor DS776/Developer/Submissions/Homework_01"
+    echo ""
+    echo "  AI-powered grading (compares against rubric):"
+    echo "    /homework_processor DS776/Developer/Submissions/Homework_01 --use-ai"
+    echo ""
+    echo "  Test mode with AI (processes 3 submissions):"
+    echo "    /homework_processor DS776/Developer/Submissions/Homework_01 --use-ai --test-mode"
+    exit 1
+fi
+
+SUBMISSION_DIR="$1"
+
+# Find the repository root
+REPO_ROOT=""
+CURRENT_DIR="$(pwd)"
+
+while [ "$CURRENT_DIR" != "/" ]; do
+    if [ -f "$CURRENT_DIR/CLAUDE.md" ]; then
+        REPO_ROOT="$CURRENT_DIR"
+        break
+    fi
+    CURRENT_DIR="$(dirname "$CURRENT_DIR")"
+done
+
+if [ -z "$REPO_ROOT" ]; then
+    echo "❌ Could not find repository root (CLAUDE.md not found)"
+    exit 1
+fi
+
+# Check if submission directory exists
+if [ ! -d "$SUBMISSION_DIR" ]; then
+    echo "❌ Submission directory not found: $SUBMISSION_DIR"
+    exit 1
+fi
+
+echo "📚 DS776 Enhanced Homework Processor"
+echo "📁 Submission directory: $SUBMISSION_DIR"
+echo "📂 Repository root: $REPO_ROOT"
+
+# Check for --use-ai flag
+if [[ " $@ " =~ " --use-ai " ]]; then
+    echo "🤖 AI grading: ENABLED (using Gemini)"
+else
+    echo "📊 AI grading: DISABLED (basic completion check)"
+    echo "   💡 Tip: Add --use-ai for intelligent grading"
+fi
+
+# Check for --test-mode flag
+if [[ " $@ " =~ " --test-mode " ]]; then
+    echo "🧪 Test mode: Processing first 3 submissions only"
+fi
+
+echo ""
+
+# Run the enhanced Python processor
+cd "$REPO_ROOT"
+
+# Use the AI-enhanced processor if it exists, otherwise fall back
+if [ -f "Developer/Scripts/homework_processor_ai.py" ]; then
+    python Developer/Scripts/homework_processor_ai.py "$@"
+else
+    echo "⚠️ AI processor not found, using basic processor"
+    python Developer/Scripts/homework_processor.py "$SUBMISSION_DIR"
+fi
+
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo ""
+    echo "🎯 Processing complete!"
+    echo ""
+    echo "📊 Review these files:"
+    echo "   • Grading summary in: $SUBMISSION_DIR"
+    echo "   • Reflection analysis in: Developer/Submissions/Reflections/"
+    echo ""
+    echo "💡 Next steps:"
+    echo "   1. Review the AI grading summary for quick insights"
+    echo "   2. Focus on flagged submissions that need attention"
+    echo "   3. Use the instructor notes for efficient grading"
+else
+    echo ""
+    echo "❌ Processing failed. Check errors above."
+    exit 1
+fi

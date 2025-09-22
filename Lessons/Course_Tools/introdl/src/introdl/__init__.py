@@ -3,8 +3,9 @@ DS776 Deep Learning Course Package
 Simplified flat structure for easier maintenance and documentation.
 """
 
-__version__ = "1.5.7"
+__version__ = "1.5.8"
 # Version history:
+# 1.5.8 - Fixed import-time error in summarization.py by lazy-loading evaluate metrics
 # 1.5.7 - Improved parameter interaction clarity and best epoch tracking when resuming
 # 1.5.6 - Added message reporting which epoch had the best model at end of training
 # 1.5.5 - Fixed progress bar to show total epochs correctly when resuming (e.g., 3/15 instead of 1/13)

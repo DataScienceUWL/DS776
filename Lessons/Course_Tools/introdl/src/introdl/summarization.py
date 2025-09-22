@@ -4,10 +4,20 @@ import nltk
 nltk.download("punkt", quiet=True)
 from nltk.tokenize import sent_tokenize
 
-# Load metrics
-bleu = load("bleu")
-rouge = load("rouge")
-bertscore = load("bertscore")
+# Lazy load metrics to avoid import errors
+bleu = None
+rouge = None
+bertscore = None
+
+def _ensure_metrics_loaded():
+    """Load metrics on first use to avoid import-time errors."""
+    global bleu, rouge, bertscore
+    if bleu is None:
+        bleu = load("bleu")
+    if rouge is None:
+        rouge = load("rouge")
+    if bertscore is None:
+        bertscore = load("bertscore")
 
 def format_for_rougeLsum(texts):
     """Adds newlines between sentences as expected by ROUGE-Lsum."""
@@ -22,6 +32,9 @@ def compute_all_metrics(predictions, references):
     Inputs can be strings or lists of strings.
     Returns a dictionary of raw metric scores.
     """
+    # Ensure metrics are loaded
+    _ensure_metrics_loaded()
+
     # Wrap single examples in lists
     if isinstance(predictions, str):
         predictions = [predictions]
