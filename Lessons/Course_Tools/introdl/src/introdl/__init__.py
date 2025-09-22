@@ -3,8 +3,55 @@ DS776 Deep Learning Course Package
 Simplified flat structure for easier maintenance and documentation.
 """
 
-__version__ = "1.5.8"
+# Suppress warnings before any imports
+import os
+import warnings
+import logging
+
+# Suppress TensorFlow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+# Suppress Python warnings
+warnings.filterwarnings('ignore', message='.*MessageFactory.*')
+warnings.filterwarnings('ignore', message='.*GetPrototype.*')
+warnings.filterwarnings('ignore', message='.*cuFFT.*')
+warnings.filterwarnings('ignore', message='.*cuDNN.*')
+warnings.filterwarnings('ignore', message='.*cuBLAS.*')
+
+# Suppress protobuf warnings (common with TensorFlow/PyTorch conflicts)
+warnings.filterwarnings('ignore', category=AttributeError)
+warnings.filterwarnings('ignore', module='google.protobuf')
+
+# Suppress logging warnings
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+logging.getLogger('transformers').setLevel(logging.ERROR)
+
+# Suppress absl logging
+try:
+    import absl.logging
+    absl.logging.set_verbosity(absl.logging.ERROR)
+except ImportError:
+    pass
+
+# Create a context manager to suppress stderr during imports
+import sys
+from contextlib import contextmanager
+import io
+
+@contextmanager
+def suppress_stderr():
+    """Temporarily suppress stderr output."""
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = io.StringIO()
+        yield
+    finally:
+        sys.stderr = old_stderr
+
+__version__ = "1.5.9"
 # Version history:
+# 1.5.9 - Added comprehensive warning suppression for TensorFlow/CUDA/protobuf messages
 # 1.5.8 - Fixed import-time error in summarization.py by lazy-loading evaluate metrics
 # 1.5.7 - Improved parameter interaction clarity and best epoch tracking when resuming
 # 1.5.6 - Added message reporting which epoch had the best model at end of training
@@ -20,96 +67,98 @@ __version__ = "1.5.8"
 # 1.4.2 - Fixed NumPy dependency to <2.0 for compatibility with matplotlib/seaborn
 # 1.4.1 - Fixed API key priority (DS776_ROOT_DIR first), cs_workspace for data on compute servers
 
-# Core utilities (most commonly used)
-from .utils import (
-    config_paths_keys,
-    get_device,
-    load_model,
-    load_results,
-    summarizer,
-    create_CIFAR10_loaders,
-    convert_nb_to_html,
-    wrap_print_text,
-    classifier_predict,
-    detect_jupyter_environment
-)
+# Wrap all imports with stderr suppression to avoid TensorFlow/CUDA warnings
+with suppress_stderr():
+    # Core utilities (most commonly used)
+    from .utils import (
+        config_paths_keys,
+        get_device,
+        load_model,
+        load_results,
+        summarizer,
+        create_CIFAR10_loaders,
+        convert_nb_to_html,
+        wrap_print_text,
+        classifier_predict,
+        detect_jupyter_environment
+    )
 
-# Training functions
-from .idlmam import (
-    train_network,
-    train_simple_network,
-    visualize2DSoftmax
-)
+    # Training functions
+    from .idlmam import (
+        train_network,
+        train_simple_network,
+        visualize2DSoftmax
+    )
 
-# Visualization functions
-from .visul import (
-    create_image_grid,
-    plot_training_metrics,
-    vis_feature_maps,
-    vis_feature_maps_widget,
-    interactive_mnist_prediction,
-    plot_transformed_images,
-    evaluate_classifier,
-    image_to_PIL
-)
+    # Visualization functions
+    from .visul import (
+        create_image_grid,
+        plot_training_metrics,
+        vis_feature_maps,
+        vis_feature_maps_widget,
+        interactive_mnist_prediction,
+        plot_transformed_images,
+        evaluate_classifier,
+        image_to_PIL
+    )
 
-# NLP functions
-from .nlp import (
-    llm_configure,
-    llm_generate,
-    llm_list_models,
-    clear_pipeline,
-    print_pipeline_info,
-    display_markdown
-)
+    # NLP functions
+    from .nlp import (
+        llm_configure,
+        llm_generate,
+        llm_list_models,
+        clear_pipeline,
+        print_pipeline_info,
+        display_markdown
+    )
 
-# Text generation functions
-from .generation import (
-    model_report,
-    generate_top_k_table,
-    generate_greedy_decoding_table,
-    generate_detailed_beam_search,
-    generate_top_k_sampling,
-    generate_top_p_sampling,
-    plot_top_k_distribution,
-    visualize_conversation
-)
+    # Text generation functions
+    from .generation import (
+        model_report,
+        generate_top_k_table,
+        generate_greedy_decoding_table,
+        generate_detailed_beam_search,
+        generate_top_k_sampling,
+        generate_top_p_sampling,
+        plot_top_k_distribution,
+        visualize_conversation
+    )
 
-# Summarization functions
-from .summarization import (
-    compute_all_metrics,
-    print_metrics
-)
+    # Summarization functions
+    from .summarization import (
+        compute_all_metrics,
+        print_metrics
+    )
 
-# Storage utilities
-from .storage import (
-    display_storage_report,
-    cleanup_old_cache,
-    delete_current_lesson_models,
-    export_homework_html_interactive,
-    zip_homework_models
-)
+    # Storage utilities
+    from .storage import (
+        display_storage_report,
+        cleanup_old_cache,
+        delete_current_lesson_models,
+        export_homework_html_interactive,
+        zip_homework_models
+    )
 
-# Path utilities
-from .paths import (
-    get_course_root,
-    get_lessons_dir,
-    get_course_tools_dir,
-    get_workspace_dir,
-    resolve_env_file,
-    resolve_api_keys_file
-)
+    # Path utilities
+    from .paths import (
+        get_course_root,
+        get_lessons_dir,
+        get_course_tools_dir,
+        get_workspace_dir,
+        resolve_env_file,
+        resolve_api_keys_file
+    )
 
-# Notebook state management
-from .notebook_states import (
-    save_state,
-    load_state,
-    enable_cell_autosave,
-    list_states,
-    delete_states,
-    register_dataloader,
-    rebuild_registered_dataloaders
-)
+    # Notebook state management
+    from .notebook_states import (
+        save_state,
+        load_state,
+        enable_cell_autosave,
+        list_states,
+        delete_states,
+        register_dataloader,
+        rebuild_registered_dataloaders
+    )
 
 # Define public API
 __all__ = [
