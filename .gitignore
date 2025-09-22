@@ -24,6 +24,7 @@ extras/
 
 # Ignore Textbooks
 Textbooks/
+Resources/
 
 # Testing scripts and notes (contain credentials/tokens)
 test_in_cocalc.sh
@@ -62,3 +63,11 @@ Homework/Homework_*/Homework_*_Models/
 *.tmp
 *.temp
 *.cache
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
