@@ -75,14 +75,34 @@ def main():
     
     print(f"📦 Source version: {source_version}")
     
-    # Check installed version
+    # Check installed version with detailed diagnostics
     installed_version = None
     install_location = None
+
+    # First check with pip
+    pip_check = subprocess.run([
+        sys.executable, "-m", "pip", "show", "introdl"
+    ], capture_output=True, text=True)
+
+    if pip_check.returncode == 0:
+        # Parse pip show output
+        pip_version = None
+        pip_location = None
+        for line in pip_check.stdout.split('\n'):
+            if line.startswith('Version:'):
+                pip_version = line.split(':', 1)[1].strip()
+            elif line.startswith('Location:'):
+                pip_location = line.split(':', 1)[1].strip()
+
+        if pip_version:
+            print_info(f"pip reports introdl version {pip_version} at {pip_location}")
+
+    # Now try to import it
     try:
         result = subprocess.run([
             sys.executable, "-c", "import introdl; print(introdl.__file__); print(getattr(introdl, '__version__', 'unknown'))"
         ], capture_output=True, text=True)
-        
+
         if result.returncode == 0:
             lines = result.stdout.strip().split('\n')
             if len(lines) >= 2:
@@ -90,11 +110,27 @@ def main():
                 installed_version = lines[1]
                 print_status(f"Installed version: {installed_version}")
                 print_info(f"Location: {install_location}")
-    except Exception:
-        pass
-    
+        else:
+            # Import failed, show why
+            if result.stderr:
+                print_warning(f"Cannot import introdl: {result.stderr.strip()}")
+
+                # Check if it's in sys.path issue
+                path_result = subprocess.run([
+                    sys.executable, "-c",
+                    "import sys; import site; print('User site:', site.USER_SITE); print('In path:', site.USER_SITE in sys.path)"
+                ], capture_output=True, text=True)
+
+                if path_result.returncode == 0:
+                    print_info("Python path info:")
+                    for line in path_result.stdout.split('\n'):
+                        if line.strip():
+                            print_info(f"  {line.strip()}")
+    except Exception as e:
+        print_error(f"Error checking installation: {e}")
+
     if not installed_version:
-        print_warning("introdl not installed")
+        print_warning("introdl not installed or not importable")
     
     # Version comparison logic
     needs_update = False
@@ -185,28 +221,68 @@ def main():
             if result.returncode == 0:
                 print_status("Installation command completed")
 
+                # Wait a moment for installation to complete
+                import time
+                time.sleep(1)
+
                 # Verify the new version was actually installed
-                version_check = subprocess.run([
-                    sys.executable, "-c", "import introdl; print(introdl.__version__)"
+                print_info("Verifying installation...")
+
+                # Check if module can be imported at all
+                import_check = subprocess.run([
+                    sys.executable, "-c", "import introdl; print('Import successful')"
                 ], capture_output=True, text=True)
 
-                if version_check.returncode == 0:
-                    new_version = version_check.stdout.strip()
-                    if new_version == source_version:
-                        print_status(f"Successfully updated to version {new_version}")
+                if import_check.returncode != 0:
+                    print_warning("Cannot import introdl after installation")
+                    print_info(f"Import error: {import_check.stderr.strip()}")
+
+                    # Try to find where it was installed
+                    pip_show = subprocess.run([
+                        sys.executable, "-m", "pip", "show", "introdl"
+                    ], capture_output=True, text=True)
+
+                    if pip_show.returncode == 0:
+                        print_info("Package is installed according to pip:")
+                        for line in pip_show.stdout.split('\n')[:5]:
+                            if line.strip():
+                                print_info(f"  {line.strip()}")
                     else:
-                        print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
-                        print_info("Try restarting the kernel and running again")
+                        print_error("Package not found by pip show")
 
-                # Test the installation
-                test_result = subprocess.run([
-                    sys.executable, "-c", "from introdl.utils import config_paths_keys; print('Works!')"
-                ], capture_output=True, text=True)
+                    # Check sys.path
+                    path_check = subprocess.run([
+                        sys.executable, "-c", "import sys; print('\\n'.join(sys.path[:5]))"
+                    ], capture_output=True, text=True)
+                    print_info("Python path (first 5):")
+                    for line in path_check.stdout.split('\n'):
+                        if line.strip():
+                            print_info(f"  {line.strip()}")
 
-                if test_result.returncode == 0:
-                    print_status("Installation verified - introdl.utils imports correctly")
                 else:
-                    print_warning("Installation may need kernel restart to work properly")
+                    # Import successful, check version
+                    version_check = subprocess.run([
+                        sys.executable, "-c", "import introdl; print(introdl.__version__)"
+                    ], capture_output=True, text=True)
+
+                    if version_check.returncode == 0:
+                        new_version = version_check.stdout.strip()
+                        if new_version == source_version:
+                            print_status(f"Successfully updated to version {new_version}")
+                        else:
+                            print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
+                            print_info("Try restarting the kernel and running again")
+
+                    # Test the installation
+                    test_result = subprocess.run([
+                        sys.executable, "-c", "from introdl.utils import config_paths_keys; print('Works!')"
+                    ], capture_output=True, text=True)
+
+                    if test_result.returncode == 0:
+                        print_status("Installation verified - introdl.utils imports correctly")
+                    else:
+                        print_warning("Installation succeeded but imports may need kernel restart")
+                        print_info(f"Import error: {test_result.stderr.strip() if test_result.stderr else 'Unknown'}")
                 
                 print("\n🔄 IMPORTANT: Restart your kernel and run this cell again!")
                 print("=" * 57)
