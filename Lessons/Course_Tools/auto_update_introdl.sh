@@ -104,10 +104,20 @@ if [ "$NEEDS_UPDATE" = true ]; then
     echo "================================"
     
     # Uninstall existing
-    pip uninstall introdl -y --quiet 2>/dev/null
-    
-    # Install fresh with force reinstall (no-deps to avoid reinstalling all dependencies)
-    if pip install "$INTRODL_DIR" --force-reinstall --no-deps --quiet 2>/dev/null; then
+    print_info "Uninstalling old version..."
+    if pip uninstall introdl -y 2>&1 | grep -q "Successfully uninstalled"; then
+        print_status "Old version uninstalled"
+    else
+        print_warning "No existing installation to uninstall"
+    fi
+
+    # Clear pip cache for introdl
+    print_info "Clearing pip cache for introdl..."
+    pip cache remove introdl 2>/dev/null || true
+
+    # Install fresh with no-cache-dir to prevent using cached version
+    print_info "Installing new version (bypassing cache)..."
+    if pip install "$INTRODL_DIR" --no-cache-dir --upgrade 2>/dev/null; then
         print_status "Installation successful!"
         
         # Test the installation

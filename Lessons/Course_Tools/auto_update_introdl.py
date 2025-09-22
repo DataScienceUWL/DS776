@@ -121,27 +121,57 @@ def main():
         print("\n📦 Installing/updating introdl...")
         print("=" * 32)
         
-        # Uninstall existing
+        # Uninstall existing (without quiet to see if it's actually uninstalling)
+        print_info("Uninstalling old version...")
         try:
-            subprocess.run([sys.executable, "-m", "pip", "uninstall", "introdl", "-y", "--quiet"], 
-                         capture_output=True)
+            uninstall_result = subprocess.run([sys.executable, "-m", "pip", "uninstall", "introdl", "-y"],
+                         capture_output=True, text=True)
+            if "Successfully uninstalled" in uninstall_result.stdout:
+                print_status("Old version uninstalled")
+            else:
+                print_warning("No existing installation to uninstall")
         except:
             pass
-        
-        # Install fresh with force reinstall (no-deps to avoid reinstalling all dependencies)
+
+        # Clear pip cache for introdl specifically
+        print_info("Clearing pip cache for introdl...")
         try:
+            # This removes any cached wheels for introdl
+            subprocess.run([sys.executable, "-m", "pip", "cache", "remove", "introdl"],
+                          capture_output=True, text=True)
+        except:
+            # pip cache command might not be available in older versions
+            pass
+
+        # Install fresh - use no-cache-dir to prevent using cached version
+        print_info("Installing new version (bypassing cache)...")
+        try:
+            # Use no-cache-dir to force pip to use the actual source files
             result = subprocess.run([
-                sys.executable, "-m", "pip", "install", str(introdl_dir), "--force-reinstall", "--no-deps", "--quiet"
+                sys.executable, "-m", "pip", "install", str(introdl_dir), "--no-cache-dir", "--upgrade"
             ], capture_output=True, text=True)
             
             if result.returncode == 0:
-                print_status("Installation successful!")
-                
+                print_status("Installation command completed")
+
+                # Verify the new version was actually installed
+                version_check = subprocess.run([
+                    sys.executable, "-c", "import introdl; print(introdl.__version__)"
+                ], capture_output=True, text=True)
+
+                if version_check.returncode == 0:
+                    new_version = version_check.stdout.strip()
+                    if new_version == source_version:
+                        print_status(f"Successfully updated to version {new_version}")
+                    else:
+                        print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
+                        print_info("Try restarting the kernel and running again")
+
                 # Test the installation
                 test_result = subprocess.run([
                     sys.executable, "-c", "from introdl.utils import config_paths_keys; print('Works!')"
                 ], capture_output=True, text=True)
-                
+
                 if test_result.returncode == 0:
                     print_status("Installation verified - introdl.utils imports correctly")
                 else:
@@ -152,10 +182,28 @@ def main():
                 sys.exit(2)  # Special exit code to indicate restart needed
                 
             else:
-                print_error("Installation failed")
-                print("📝 Fallback: Try running the full Course_Setup.ipynb notebook")
-                sys.exit(1)
-                
+                print_error(f"Installation failed with error code {result.returncode}")
+                if result.stderr:
+                    print_error(f"Error message: {result.stderr}")
+                print_info("Trying alternative installation method...")
+
+                # Try without upgrade flag and with no-cache-dir
+                result2 = subprocess.run([
+                    sys.executable, "-m", "pip", "install", str(introdl_dir), "--force-reinstall", "--no-cache-dir"
+                ], capture_output=True, text=True)
+
+                if result2.returncode == 0:
+                    print_status("Alternative installation succeeded")
+                    print("\n🔄 IMPORTANT: Restart your kernel and run this cell again!")
+                    print("=" * 57)
+                    sys.exit(2)
+                else:
+                    print_error("Alternative installation also failed")
+                    if result2.stderr:
+                        print_error(f"Error: {result2.stderr}")
+                    print("📝 Fallback: Try running the full Course_Setup.ipynb notebook")
+                    sys.exit(1)
+
         except Exception as e:
             print_error(f"Installation error: {e}")
             sys.exit(1)
