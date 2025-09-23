@@ -179,10 +179,61 @@ def main():
     elif verbose:
         print_warning("introdl not installed or not detectable")
 
+    # Check for old nested module structure FIRST
+    # This is critical for Hyperstack where old structure causes import errors
+    has_old_structure = False
+    old_structure_location = None
+
+    # Check using pip show first
+    try:
+        result = subprocess.run([sys.executable, "-m", "pip", "show", "introdl"],
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if line.startswith('Location:'):
+                    pip_location = Path(line.split(':', 1)[1].strip())
+                    introdl_path = pip_location / "introdl"
+                    if introdl_path.exists():
+                        # Check for old subdirectories
+                        old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                        for subdir in old_subdirs:
+                            if (introdl_path / subdir).exists():
+                                has_old_structure = True
+                                old_structure_location = introdl_path
+                                if verbose:
+                                    print_warning(f"Found OLD nested structure at: {introdl_path}")
+                                break
+                    break
+    except:
+        pass
+
+    # Also check common Hyperstack location
+    if not has_old_structure:
+        hyperstack_locations = [
+            Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages/introdl"),
+            Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages/introdl"),
+        ]
+        for introdl_path in hyperstack_locations:
+            if introdl_path.exists():
+                old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                for subdir in old_subdirs:
+                    if (introdl_path / subdir).exists():
+                        has_old_structure = True
+                        old_structure_location = introdl_path
+                        if verbose:
+                            print_warning(f"Found OLD nested structure at: {introdl_path}")
+                        break
+                if has_old_structure:
+                    break
+
     # Version comparison logic
     needs_update = False
 
-    if not installed_version:
+    if has_old_structure:
+        # FORCE UPDATE if old structure exists
+        print_warning("⚠️  OLD package structure detected - forcing complete reinstall")
+        needs_update = True
+    elif not installed_version:
         if verbose:
             print_info("No installation found - will install")
         needs_update = True
@@ -223,68 +274,79 @@ def main():
             print("\n📦 Installing/updating introdl...")
             print("=" * 32)
 
-        # First, completely remove any existing introdl directories
-        # This is crucial for Hyperstack where old nested modules might persist
-        if verbose:
-            print_info("Searching for and removing ALL old introdl installations...")
-
-        # Check if we're on Hyperstack (CoCalc compute server)
-        is_hyperstack = 'hyperstack' in os.environ.get('HOSTNAME', '').lower() or \
-                       os.path.exists('/home/user/.local')  # Common on compute servers
-
-        removed_locations = []
-        has_mixed_structure = False
-
-        for location in search_paths:
-            introdl_path = location / "introdl"
-            if introdl_path.exists():
-                # Check if this has the old nested structure
-                has_old_structure = False
-                old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
-                for subdir in old_subdirs:
-                    if (introdl_path / subdir / "__init__.py").exists():
-                        has_old_structure = True
+        # CRITICAL: Find the ACTUAL installation location using pip show
+        # This is the most reliable way to find where the package is really installed
+        actual_install_location = None
+        try:
+            result = subprocess.run([sys.executable, "-m", "pip", "show", "introdl"],
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if line.startswith('Location:'):
+                        actual_install_location = Path(line.split(':', 1)[1].strip())
+                        if verbose:
+                            print_info(f"Found introdl installed at: {actual_install_location}")
                         break
+        except:
+            pass
 
-                # Check if it also has new flat structure files
-                new_files = ['utils.py', 'nlp.py', 'idlmam.py', 'visul.py']
-                has_new_structure = any((introdl_path / f).exists() for f in new_files)
+        # If we found the actual location, check if it has the old structure and remove it
+        if actual_install_location and actual_install_location.exists():
+            introdl_path = actual_install_location / "introdl"
+            if introdl_path.exists():
+                # Check for old nested structure
+                old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                has_old_structure = any((introdl_path / subdir).exists() for subdir in old_subdirs)
 
-                if has_old_structure and has_new_structure:
-                    has_mixed_structure = True
-                    print_warning(f"⚠️  MIXED OLD+NEW structure detected at: {location}")
-                    print_info("   This is likely causing import problems!", force=True)
+                if has_old_structure:
+                    print_warning(f"⚠️  OLD nested structure detected at: {introdl_path}")
+                    print_info("Completely removing old package...", force=True)
 
-                # Remove the entire directory
-                try:
-                    import shutil
-                    shutil.rmtree(introdl_path)
-                    removed_locations.append(str(location))
-                    if verbose:
-                        if has_old_structure:
-                            print_warning(f"Removed OLD nested structure from: {location}")
-                        else:
-                            print_info(f"Removed introdl from: {location}")
-                except Exception as e:
-                    if verbose:
-                        print_warning(f"Could not remove {introdl_path}: {e}")
+                    # Force remove the entire introdl directory
+                    try:
+                        import shutil
+                        shutil.rmtree(introdl_path)
+                        print_status(f"✅ Removed old package from: {actual_install_location}")
+                    except Exception as e:
+                        # If normal removal fails, try with sudo (won't work in most cases but worth trying)
+                        print_error(f"Could not remove {introdl_path}: {e}")
+                        print_info("You may need to manually remove it with:", force=True)
+                        print_info(f"  sudo rm -rf {introdl_path}", force=True)
 
-        # Special message for Hyperstack
-        if has_mixed_structure or is_hyperstack:
-            if not verbose:
-                print_warning("Cleaning up mixed package structures...")
-                print_info("This is a one-time fix for Hyperstack environments", force=True)
+                # Also check for and remove egg-info
+                for egg_info in actual_install_location.glob("introdl*.egg-info"):
+                    try:
+                        import shutil
+                        shutil.rmtree(egg_info)
+                        if verbose:
+                            print_info(f"Removed egg-info: {egg_info}")
+                    except:
+                        pass
 
-        # Also remove .egg-info directories
-        for location in search_paths:
-            for egg_info in location.glob("introdl*.egg-info"):
-                try:
-                    import shutil
-                    shutil.rmtree(egg_info)
-                    if verbose:
-                        print_info(f"Removed egg-info: {egg_info.name}")
-                except:
-                    pass
+        # Also check common locations like /usr/local/lib/python*/dist-packages
+        # This is especially important for Hyperstack
+        common_locations = [
+            Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+            Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+            Path(site.getusersitepackages()),
+        ]
+
+        for location in common_locations:
+            if location.exists():
+                introdl_path = location / "introdl"
+                if introdl_path.exists():
+                    # Check for old structure
+                    old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                    has_old_structure = any((introdl_path / subdir).exists() for subdir in old_subdirs)
+
+                    if has_old_structure:
+                        try:
+                            import shutil
+                            shutil.rmtree(introdl_path)
+                            print_warning(f"Removed old structure from: {location}")
+                        except Exception as e:
+                            if verbose:
+                                print_warning(f"Could not remove {introdl_path}: {e}")
 
         # Now use pip uninstall to clean up any metadata
         if verbose:
@@ -296,8 +358,6 @@ def main():
                              capture_output=True, text=True, timeout=10)
                 if "Cannot uninstall" not in uninstall_result.stdout and "not installed" in uninstall_result.stdout.lower():
                     break  # Nothing left to uninstall
-            if verbose and removed_locations:
-                print_status("Completely removed old installations from: " + ", ".join(set(removed_locations)))
         except:
             pass
 
