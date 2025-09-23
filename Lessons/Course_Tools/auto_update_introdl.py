@@ -373,10 +373,10 @@ def main():
                 shutil.copy2(api_keys_template, api_keys_file)
                 print_info("Created API keys template at home_workspace/api_keys.env", force=True)
                 print("📝 Remember to add your actual API keys for Lessons 7+")
-        else:
-            print_warning("API keys template not found")
-    elif verbose:
-        print_status("API keys file exists")
+            else:
+                print_warning("API keys template not found")
+        elif verbose:
+            print_status("API keys file exists")
 
     # Check if we're in a local git repo (only in verbose)
     if verbose and (course_root / ".git").exists():
