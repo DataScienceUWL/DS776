@@ -300,18 +300,51 @@ def main():
 
                 if has_old_structure:
                     print_warning(f"⚠️  OLD nested structure detected at: {introdl_path}")
-                    print_info("Completely removing old package...", force=True)
+                    print_info("Aggressively removing old package and subdirectories...", force=True)
 
-                    # Force remove the entire introdl directory
+                    # First try to remove just the old subdirectories
+                    old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                    for subdir in old_subdirs:
+                        subdir_path = introdl_path / subdir
+                        if subdir_path.exists():
+                            try:
+                                import shutil
+                                shutil.rmtree(subdir_path)
+                                print_info(f"  Removed old subdir: {subdir}/", force=True)
+                            except PermissionError:
+                                # Try to at least delete the __init__.py files to break imports
+                                try:
+                                    init_file = subdir_path / "__init__.py"
+                                    if init_file.exists():
+                                        init_file.unlink()
+                                        print_info(f"  Deleted {subdir}/__init__.py to break imports", force=True)
+
+                                    # Also try to rename the directory to break imports
+                                    try:
+                                        subdir_path.rename(subdir_path.parent / f"_old_{subdir}")
+                                        print_info(f"  Renamed {subdir}/ to _old_{subdir}/ to break imports", force=True)
+                                    except:
+                                        pass
+                                except Exception as e2:
+                                    print_warning(f"  Could not fully remove {subdir}: {e2}")
+                            except Exception as e:
+                                print_warning(f"  Error removing {subdir}: {e}")
+
+                    # Now try to remove the entire introdl directory
                     try:
                         import shutil
                         shutil.rmtree(introdl_path)
-                        print_status(f"✅ Removed old package from: {actual_install_location}")
-                    except Exception as e:
-                        # If normal removal fails, try with sudo (won't work in most cases but worth trying)
-                        print_error(f"Could not remove {introdl_path}: {e}")
-                        print_info("You may need to manually remove it with:", force=True)
+                        print_status(f"✅ Completely removed old package from: {actual_install_location}")
+                    except PermissionError as e:
+                        print_error(f"Permission denied removing {introdl_path}")
+                        print_error("⚠️  MANUAL INTERVENTION REQUIRED!")
+                        print_info("Please run this command manually:", force=True)
                         print_info(f"  sudo rm -rf {introdl_path}", force=True)
+                        print_info("Then restart the kernel and run this cell again.", force=True)
+                        sys.exit(1)  # Exit to force user to handle this
+                    except Exception as e:
+                        print_warning(f"Could not fully remove {introdl_path}: {e}")
+                        # Continue anyway - maybe partial removal will help
 
                 # Also check for and remove egg-info
                 for egg_info in actual_install_location.glob("introdl*.egg-info"):
@@ -340,13 +373,46 @@ def main():
                     has_old_structure = any((introdl_path / subdir).exists() for subdir in old_subdirs)
 
                     if has_old_structure:
+                        print_warning(f"OLD structure found at: {location}")
+
+                        # Aggressively remove subdirectories
+                        for subdir in old_subdirs:
+                            subdir_path = introdl_path / subdir
+                            if subdir_path.exists():
+                                try:
+                                    import shutil
+                                    shutil.rmtree(subdir_path)
+                                    print_info(f"  Removed: {subdir}/", force=True)
+                                except PermissionError:
+                                    # At minimum, try to break imports
+                                    try:
+                                        init_file = subdir_path / "__init__.py"
+                                        if init_file.exists():
+                                            init_file.unlink()
+                                            print_info(f"  Deleted {subdir}/__init__.py", force=True)
+                                    except:
+                                        pass
+                                    try:
+                                        subdir_path.rename(subdir_path.parent / f"_broken_{subdir}")
+                                        print_info(f"  Renamed to _broken_{subdir}/", force=True)
+                                    except:
+                                        pass
+                                except Exception as e:
+                                    if verbose:
+                                        print_warning(f"  Could not remove {subdir}: {e}")
+
+                        # Try to remove entire directory
                         try:
                             import shutil
                             shutil.rmtree(introdl_path)
-                            print_warning(f"Removed old structure from: {location}")
+                            print_status(f"Removed entire old package from: {location}")
+                        except PermissionError:
+                            print_error(f"⚠️  PERMISSION DENIED at {introdl_path}")
+                            print_error("Manual removal required - run:")
+                            print_info(f"  sudo rm -rf {introdl_path}", force=True)
                         except Exception as e:
                             if verbose:
-                                print_warning(f"Could not remove {introdl_path}: {e}")
+                                print_warning(f"Could not fully remove {introdl_path}: {e}")
 
         # Now use pip uninstall to clean up any metadata
         if verbose:

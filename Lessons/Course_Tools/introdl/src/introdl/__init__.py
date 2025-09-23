@@ -57,8 +57,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.18"
+__version__ = "1.5.19"
 # Version history:
+# 1.5.19 - Aggressive subdirectory removal, delete __init__.py files, rename dirs if can't delete
 # 1.5.18 - Force reinstall if old nested structure detected, check actual pip location first
 # 1.5.17 - Complete removal of old nested module structure in auto_update for Hyperstack
 # 1.5.16 - Remove import tests from auto_update that timeout due to heavy modules
