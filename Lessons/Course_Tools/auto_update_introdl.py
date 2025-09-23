@@ -198,6 +198,22 @@ def main():
         # Already up to date - only show this message
         print_status(f"introdl v{installed_version} already up to date")
 
+    # Build list of search paths for installations
+    # This will be used if we need to do a complete removal
+    search_paths = [
+        Path(site.getusersitepackages()),  # User site-packages
+        Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        Path(sys.prefix) / "local" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    ]
+
+    # Add any paths from sys.path that contain site-packages
+    for p in sys.path:
+        if 'site-packages' in p and Path(p).exists():
+            search_paths.append(Path(p))
+
+    # Remove duplicates and keep only existing paths
+    search_paths = list(set(p for p in search_paths if p and p.exists()))
+
     # Install/update if needed
     if needs_update:
         if not verbose:
@@ -207,17 +223,81 @@ def main():
             print("\n📦 Installing/updating introdl...")
             print("=" * 32)
 
-        # Uninstall existing
+        # First, completely remove any existing introdl directories
+        # This is crucial for Hyperstack where old nested modules might persist
         if verbose:
-            print_info("Uninstalling old version...")
+            print_info("Searching for and removing ALL old introdl installations...")
+
+        # Check if we're on Hyperstack (CoCalc compute server)
+        is_hyperstack = 'hyperstack' in os.environ.get('HOSTNAME', '').lower() or \
+                       os.path.exists('/home/user/.local')  # Common on compute servers
+
+        removed_locations = []
+        has_mixed_structure = False
+
+        for location in search_paths:
+            introdl_path = location / "introdl"
+            if introdl_path.exists():
+                # Check if this has the old nested structure
+                has_old_structure = False
+                old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
+                for subdir in old_subdirs:
+                    if (introdl_path / subdir / "__init__.py").exists():
+                        has_old_structure = True
+                        break
+
+                # Check if it also has new flat structure files
+                new_files = ['utils.py', 'nlp.py', 'idlmam.py', 'visul.py']
+                has_new_structure = any((introdl_path / f).exists() for f in new_files)
+
+                if has_old_structure and has_new_structure:
+                    has_mixed_structure = True
+                    print_warning(f"⚠️  MIXED OLD+NEW structure detected at: {location}")
+                    print_info("   This is likely causing import problems!", force=True)
+
+                # Remove the entire directory
+                try:
+                    import shutil
+                    shutil.rmtree(introdl_path)
+                    removed_locations.append(str(location))
+                    if verbose:
+                        if has_old_structure:
+                            print_warning(f"Removed OLD nested structure from: {location}")
+                        else:
+                            print_info(f"Removed introdl from: {location}")
+                except Exception as e:
+                    if verbose:
+                        print_warning(f"Could not remove {introdl_path}: {e}")
+
+        # Special message for Hyperstack
+        if has_mixed_structure or is_hyperstack:
+            if not verbose:
+                print_warning("Cleaning up mixed package structures...")
+                print_info("This is a one-time fix for Hyperstack environments", force=True)
+
+        # Also remove .egg-info directories
+        for location in search_paths:
+            for egg_info in location.glob("introdl*.egg-info"):
+                try:
+                    import shutil
+                    shutil.rmtree(egg_info)
+                    if verbose:
+                        print_info(f"Removed egg-info: {egg_info.name}")
+                except:
+                    pass
+
+        # Now use pip uninstall to clean up any metadata
+        if verbose:
+            print_info("Running pip uninstall to clean metadata...")
         try:
-            uninstall_result = subprocess.run([sys.executable, "-m", "pip", "uninstall", "introdl", "-y"],
-                         capture_output=True, text=True)
-            if verbose:
-                if "Successfully uninstalled" in uninstall_result.stdout:
-                    print_status("Old version uninstalled")
-                else:
-                    print_warning("No existing installation to uninstall")
+            # Run pip uninstall multiple times in case there are multiple installations
+            for _ in range(3):  # Try up to 3 times
+                uninstall_result = subprocess.run([sys.executable, "-m", "pip", "uninstall", "introdl", "-y"],
+                             capture_output=True, text=True, timeout=10)
+                if "Cannot uninstall" not in uninstall_result.stdout and "not installed" in uninstall_result.stdout.lower():
+                    break  # Nothing left to uninstall
+            if verbose and removed_locations:
+                print_status("Completely removed old installations from: " + ", ".join(set(removed_locations)))
         except:
             pass
 
