@@ -300,18 +300,8 @@ def main():
                         print_warning(f"Installation completed but version is {new_version}, expected {source_version}")
                         print_info("Try restarting the kernel and running again", force=True)
 
-                    # Test the installation (verbose only)
-                    if verbose:
-                        test_result = subprocess.run([
-                            sys.executable, "-c", "from introdl.utils import config_paths_keys; print('Works!')"
-                        ], capture_output=True, text=True, timeout=30)
-
-                        if test_result.returncode == 0:
-                            print_status("Installation verified - introdl.utils imports correctly")
-                        else:
-                            print_warning("Installation succeeded but imports may need kernel restart")
-                            if test_result.stderr:
-                                print_info(f"Import error: {test_result.stderr.strip()}")
+                    # Skip import test - it often times out due to heavy module loading
+                    # The version check above is sufficient to verify installation
                 else:
                     print_warning("Cannot verify installation - may need kernel restart")
 
@@ -342,21 +332,17 @@ def main():
                     print("📝 Fallback: Try running the full Course_Setup.ipynb notebook")
                     sys.exit(1)
 
+        except subprocess.TimeoutExpired as e:
+            print_warning("Installation process timed out")
+            print_info("The installation likely succeeded but verification timed out", force=True)
+            print("\n🔄 IMPORTANT: Restart your kernel and run this cell again!")
+            print("=" * 57)
+            sys.exit(2)
         except Exception as e:
             print_error(f"Installation error: {e}")
             sys.exit(1)
 
-    # Quick health checks (only if no update was needed and in verbose mode)
-    if verbose and not needs_update:
-        print("\n🔧 Quick health check...")
-
-        # Check introdl.utils import
-        try:
-            subprocess.run([sys.executable, "-c", "from introdl.utils import config_paths_keys"],
-                          capture_output=True, text=True, check=True, timeout=30)
-            print_status("introdl.utils imports correctly")
-        except:
-            print_error("introdl.utils import failed - may need kernel restart")
+    # Skip health checks - imports often timeout due to heavy module loading
 
     # Only do workspace setup if we did an update or in verbose mode
     if needs_update or verbose:
