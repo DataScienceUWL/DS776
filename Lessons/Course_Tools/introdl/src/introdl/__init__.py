@@ -5,12 +5,14 @@ Simplified flat structure for easier maintenance and documentation.
 
 # Suppress warnings before any imports
 import os
+import sys
 import warnings
 import logging
 
-# Suppress TensorFlow warnings
+# Suppress all TensorFlow and CUDA environment messages
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '0')  # Keep CUDA but suppress warnings
 
 # Suppress Python warnings
 warnings.filterwarnings('ignore', message='.*MessageFactory.*')
@@ -18,23 +20,30 @@ warnings.filterwarnings('ignore', message='.*GetPrototype.*')
 warnings.filterwarnings('ignore', message='.*cuFFT.*')
 warnings.filterwarnings('ignore', message='.*cuDNN.*')
 warnings.filterwarnings('ignore', message='.*cuBLAS.*')
+warnings.filterwarnings('ignore', message='.*All log messages before absl.*')
 
 # Suppress protobuf warnings (common with TensorFlow/PyTorch conflicts)
 warnings.filterwarnings('ignore', module='google.protobuf')
+warnings.filterwarnings('ignore', module='tensorflow')
 
 # Suppress logging warnings
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 logging.getLogger('transformers').setLevel(logging.ERROR)
+logging.getLogger('absl').setLevel(logging.ERROR)
 
-# Suppress absl logging
+# Suppress absl logging before it's even imported
+os.environ['ABSL_MIN_LOG_LEVEL'] = '3'
+
+# Try to suppress absl if already imported
 try:
     import absl.logging
     absl.logging.set_verbosity(absl.logging.ERROR)
-except ImportError:
+    # Also redirect absl warnings to null
+    absl.logging.get_absl_handler().python_handler.stream = open(os.devnull, 'w')
+except (ImportError, AttributeError):
     pass
 
 # Create a context manager to suppress stderr during imports
-import sys
 from contextlib import contextmanager
 import io
 
@@ -48,8 +57,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.14"
+__version__ = "1.5.15"
 # Version history:
+# 1.5.15 - More aggressive stderr suppression during imports to eliminate all warnings
 # 1.5.14 - Fixed incorrect API keys template warning in auto_update script
 # 1.5.13 - Improved package detection by directly checking site-packages directories
 # 1.5.12 - Fixed timeout issues in auto_update by using pip show instead of importing module
@@ -71,8 +81,13 @@ __version__ = "1.5.14"
 # 1.4.2 - Fixed NumPy dependency to <2.0 for compatibility with matplotlib/seaborn
 # 1.4.1 - Fixed API key priority (DS776_ROOT_DIR first), cs_workspace for data on compute servers
 
-# Wrap all imports with stderr suppression to avoid TensorFlow/CUDA warnings
-with suppress_stderr():
+# Temporarily redirect stderr to suppress all import warnings
+import os as _os
+_original_stderr = sys.stderr
+_devnull = open(_os.devnull, 'w')
+sys.stderr = _devnull
+
+try:
     # Core utilities (most commonly used)
     from .utils import (
         config_paths_keys,
@@ -163,6 +178,10 @@ with suppress_stderr():
         register_dataloader,
         rebuild_registered_dataloaders
     )
+finally:
+    # Restore stderr after imports
+    sys.stderr = _original_stderr
+    _devnull.close()
 
 # Define public API
 __all__ = [
