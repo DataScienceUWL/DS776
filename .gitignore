@@ -71,3 +71,10 @@ dist/
 __pycache__/
 *.pyc
 *.pyo
+
+# Claude AI specific
+.claude/
+tools/
+
+# Resource manifest files
+Resource_Manifest.md
