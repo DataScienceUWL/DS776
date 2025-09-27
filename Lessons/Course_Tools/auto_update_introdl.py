@@ -118,10 +118,64 @@ def get_installed_version():
             print_error(f"Error checking installation: {e}")
         return None, None
 
+def is_hyperstack():
+    """Detect if we're running on Hyperstack compute server."""
+    # Check for Hyperstack-specific indicators
+    hyperstack_indicators = [
+        os.path.exists("/usr/local/cuda"),   # CUDA installations on Hyperstack
+        os.path.exists("/.dockerenv"),       # Docker container
+        os.path.exists("/workspace"),        # Workspace directory
+        "prod-" in os.environ.get("HOSTNAME", ""),  # Hyperstack hostnames like prod-9684
+        "NVIDIA_VISIBLE_DEVICES" in os.environ,  # NVIDIA GPU environment
+        # Check if we have the specific Python path structure
+        os.path.exists(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+    ]
+    # Need at least 2 indicators to be sure it's Hyperstack
+    return sum(hyperstack_indicators) >= 2
+
+
+def clean_source_build_artifacts(introdl_dir):
+    """Clean build artifacts from the source directory."""
+    print_info("Cleaning source directory build artifacts...", force=True)
+
+    artifacts = [
+        introdl_dir / "build",
+        introdl_dir / "dist",
+        introdl_dir / "src" / "introdl.egg-info",
+        introdl_dir / "introdl.egg-info",
+    ]
+
+    for artifact in artifacts:
+        if artifact.exists():
+            try:
+                import shutil
+                shutil.rmtree(artifact)
+                print_info(f"  Removed {artifact.name}", force=True)
+            except Exception as e:
+                if verbose:
+                    print_warning(f"  Could not remove {artifact.name}: {e}")
+
+    # Remove all __pycache__ directories
+    for pycache in introdl_dir.rglob("__pycache__"):
+        try:
+            import shutil
+            shutil.rmtree(pycache)
+            if verbose:
+                print_info(f"  Removed cache: {pycache.name}")
+        except:
+            pass
+
+
 def main():
     global verbose
     # Check for verbose flag
     verbose = '--verbose' in sys.argv or '-v' in sys.argv
+
+    # Detect if we're on Hyperstack
+    on_hyperstack = is_hyperstack()
+    if on_hyperstack:
+        print_warning("🖥️  Hyperstack environment detected - using aggressive cleanup")
+        verbose = True  # Force verbose mode on Hyperstack for better debugging
 
     # Quick exit if user wants to skip the check
     if os.environ.get('SKIP_INTRODL_CHECK', '').lower() in ('1', 'true', 'yes'):
@@ -267,6 +321,10 @@ def main():
 
     # Install/update if needed
     if needs_update:
+        # On Hyperstack, always clean source build artifacts first
+        if on_hyperstack:
+            clean_source_build_artifacts(introdl_dir)
+
         if not verbose:
             # Simple message for non-verbose mode
             print("📦 Updating introdl to v{}...".format(source_version))
@@ -302,6 +360,10 @@ def main():
                     print_warning(f"⚠️  OLD nested structure detected at: {introdl_path}")
                     print_info("Aggressively removing old package and subdirectories...", force=True)
 
+                    # On Hyperstack with write permissions, be very aggressive
+                    if on_hyperstack:
+                        print_info("Hyperstack mode: Complete removal of old structure", force=True)
+
                     # First try to remove just the old subdirectories
                     old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
                     for subdir in old_subdirs:
@@ -329,6 +391,19 @@ def main():
                                     print_warning(f"  Could not fully remove {subdir}: {e2}")
                             except Exception as e:
                                 print_warning(f"  Error removing {subdir}: {e}")
+
+                            # On Hyperstack, also try to empty Python files if removal failed
+                            if on_hyperstack and subdir_path.exists():
+                                try:
+                                    for py_file in subdir_path.rglob("*.py"):
+                                        try:
+                                            py_file.write_text("# File disabled by cleanup\n")
+                                            if verbose:
+                                                print_info(f"  Emptied {py_file.name}")
+                                        except:
+                                            pass
+                                except:
+                                    pass
 
                     # Now try to remove the entire introdl directory
                     try:
@@ -361,8 +436,15 @@ def main():
         common_locations = [
             Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
             Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
-            Path(site.getusersitepackages()),
+            Path("/usr/local/lib/python3.12/dist-packages"),  # Hyperstack often uses 3.12
+            Path("/usr/local/lib/python3.11/dist-packages"),
+            Path("/usr/local/lib/python3.10/dist-packages"),
         ]
+
+        try:
+            common_locations.append(Path(site.getusersitepackages()))
+        except:
+            pass
 
         for location in common_locations:
             if location.exists():
@@ -414,6 +496,20 @@ def main():
                             if verbose:
                                 print_warning(f"Could not fully remove {introdl_path}: {e}")
 
+        # Clear Python's module cache on Hyperstack
+        if on_hyperstack:
+            print_info("Clearing Python module cache (Hyperstack mode)...", force=True)
+            if 'introdl' in sys.modules:
+                del sys.modules['introdl']
+                print_info("  Removed introdl from sys.modules", force=True)
+
+            # Remove all introdl submodules from cache
+            modules_to_remove = [mod for mod in list(sys.modules.keys()) if mod.startswith('introdl.')]
+            for mod in modules_to_remove:
+                del sys.modules[mod]
+                if verbose:
+                    print_info(f"  Removed {mod} from sys.modules", force=True)
+
         # Now use pip uninstall to clean up any metadata
         if verbose:
             print_info("Running pip uninstall to clean metadata...")
@@ -427,16 +523,31 @@ def main():
         except:
             pass
 
-        # Clear pip cache for introdl specifically
-        if verbose:
-            print_info("Clearing pip cache for introdl...")
-        try:
-            # This removes any cached wheels for introdl
-            subprocess.run([sys.executable, "-m", "pip", "cache", "remove", "introdl"],
-                          capture_output=True, text=True)
-        except:
-            # pip cache command might not be available in older versions
-            pass
+        # Clear pip cache - more aggressive on Hyperstack
+        if on_hyperstack:
+            print_info("Purging entire pip cache (Hyperstack mode)...", force=True)
+            try:
+                # Try to purge entire cache on Hyperstack
+                subprocess.run([sys.executable, "-m", "pip", "cache", "purge"],
+                              capture_output=True, text=True, timeout=10)
+                print_status("Pip cache purged")
+            except:
+                # Fallback to removing just introdl
+                try:
+                    subprocess.run([sys.executable, "-m", "pip", "cache", "remove", "introdl"],
+                                  capture_output=True, text=True)
+                except:
+                    pass
+        else:
+            if verbose:
+                print_info("Clearing pip cache for introdl...")
+            try:
+                # This removes any cached wheels for introdl
+                subprocess.run([sys.executable, "-m", "pip", "cache", "remove", "introdl"],
+                              capture_output=True, text=True)
+            except:
+                # pip cache command might not be available in older versions
+                pass
 
         # Verify the source directory structure before installing (only in verbose)
         if verbose:
