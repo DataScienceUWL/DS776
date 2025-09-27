@@ -120,18 +120,27 @@ def get_installed_version():
 
 def is_hyperstack():
     """Detect if we're running on Hyperstack compute server."""
-    # Check for Hyperstack-specific indicators
-    hyperstack_indicators = [
-        os.path.exists("/usr/local/cuda"),   # CUDA installations on Hyperstack
-        os.path.exists("/.dockerenv"),       # Docker container
-        os.path.exists("/workspace"),        # Workspace directory
-        "prod-" in os.environ.get("HOSTNAME", ""),  # Hyperstack hostnames like prod-9684
-        "NVIDIA_VISIBLE_DEVICES" in os.environ,  # NVIDIA GPU environment
-        # Check if we have the specific Python path structure
-        os.path.exists(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
-    ]
-    # Need at least 2 indicators to be sure it's Hyperstack
-    return sum(hyperstack_indicators) >= 2
+    hostname = os.environ.get("HOSTNAME", "").lower()
+
+    # CoCalc has hostnames like "project-..." or contains "cocalc"
+    if "cocalc" in hostname or hostname.startswith("project-"):
+        return False  # Definitely CoCalc, not Hyperstack
+
+    # Hyperstack-specific: hostname like "prod-9684" AND CUDA environment
+    is_hyperstack_hostname = "prod-" in hostname and any(char.isdigit() for char in hostname)
+    has_nvidia_env = "NVIDIA_VISIBLE_DEVICES" in os.environ or "CUDA_VERSION" in os.environ
+
+    # Hyperstack has very specific combination:
+    # 1. prod-XXXX hostname pattern
+    # 2. NVIDIA/CUDA environment variables
+    # 3. /workspace directory exists
+    # 4. Running in a Docker container
+    if is_hyperstack_hostname and has_nvidia_env:
+        # Double-check with workspace and docker
+        if os.path.exists("/workspace") and os.path.exists("/.dockerenv"):
+            return True
+
+    return False
 
 
 def clean_source_build_artifacts(introdl_dir):
