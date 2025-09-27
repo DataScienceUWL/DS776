@@ -77,6 +77,39 @@ echo ""
 echo "4. Cleaning compiled Python files..."
 find "$INTRODL_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" \) -exec echo "   Removing: {}" \; -exec rm -f {} +
 
+# Step 4.5: Clean old introdl from site-packages
+echo ""
+echo "4.5. Cleaning old introdl from site-packages..."
+
+# Get Python site-packages directory
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)
+
+if [ -n "$SITE_PACKAGES" ] && [ -d "$SITE_PACKAGES/introdl" ]; then
+    OLD_SUBDIRS=("idlmam" "utils" "visul" "nlp")
+    for subdir in "${OLD_SUBDIRS[@]}"; do
+        if [ -d "$SITE_PACKAGES/introdl/$subdir" ]; then
+            echo "   Found old structure in site-packages: $SITE_PACKAGES/introdl/$subdir"
+            echo "   Removing entire introdl directory: $SITE_PACKAGES/introdl"
+            rm -rf "$SITE_PACKAGES/introdl"
+            break
+        fi
+    done
+fi
+
+# Also check user site-packages
+USER_SITE=$(python3 -c "import site; print(site.getusersitepackages())" 2>/dev/null)
+if [ -n "$USER_SITE" ] && [ -d "$USER_SITE/introdl" ]; then
+    OLD_SUBDIRS=("idlmam" "utils" "visul" "nlp")
+    for subdir in "${OLD_SUBDIRS[@]}"; do
+        if [ -d "$USER_SITE/introdl/$subdir" ]; then
+            echo "   Found old structure in user site-packages: $USER_SITE/introdl/$subdir"
+            echo "   Removing entire introdl directory: $USER_SITE/introdl"
+            rm -rf "$USER_SITE/introdl"
+            break
+        fi
+    done
+fi
+
 # Step 5: Uninstall existing introdl package
 echo ""
 echo "5. Uninstalling existing introdl package (if any)..."

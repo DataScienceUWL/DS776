@@ -33,6 +33,48 @@ def run_command(cmd, ignore_errors=False):
     return True
 
 
+def clean_site_packages():
+    """Clean old introdl installations from site-packages."""
+    import site
+
+    print("\n4.5. Cleaning old introdl from site-packages...")
+
+    # Get all site-packages directories
+    site_dirs = []
+    try:
+        site_dirs.extend(site.getsitepackages())
+    except:
+        pass
+
+    try:
+        site_dirs.append(site.getusersitepackages())
+    except:
+        pass
+
+    # Also check common virtual env locations
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # We're in a virtual environment
+        site_dirs.append(os.path.join(sys.prefix, 'lib', f'python{sys.version_info.major}.{sys.version_info.minor}', 'site-packages'))
+
+    old_subdirs = ["idlmam", "utils", "visul", "nlp"]
+
+    for site_dir in site_dirs:
+        if not os.path.exists(site_dir):
+            continue
+
+        introdl_path = Path(site_dir) / "introdl"
+
+        if introdl_path.exists() and introdl_path.is_dir():
+            # Check for old subdirectories
+            for subdir in old_subdirs:
+                old_path = introdl_path / subdir
+                if old_path.exists() and old_path.is_dir():
+                    print(f"   Found old structure in site-packages: {old_path}")
+                    print(f"   Removing entire introdl directory: {introdl_path}")
+                    shutil.rmtree(introdl_path)
+                    break  # Once we find one old subdir, remove the whole thing
+
+
 def main():
     print("=" * 60)
     print("introdl Package Update Script")
@@ -117,6 +159,9 @@ def main():
         for compiled_file in introdl_dir.rglob(ext):
             print(f"   Removing: {compiled_file}")
             compiled_file.unlink()
+
+    # Step 4.5: Clean old introdl from site-packages before uninstalling
+    clean_site_packages()
 
     # Step 5: Uninstall existing introdl package
     print("\n5. Uninstalling existing introdl package (if any)...")
