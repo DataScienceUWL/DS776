@@ -484,15 +484,24 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     # First, capture which API keys/tokens are already in the environment
     existing_keys = {}
     key_patterns = ["_API_KEY", "_TOKEN"]
-    placeholder_values = ["abcdefg", "", None, "your_", "xxx"]  # Common placeholder patterns
-    
+    # Common placeholder patterns - check for these strings in the key values
+    # NOTE: Don't include empty string here - it matches everything!
+    placeholder_patterns = ["abcdefg", "your_", "xxx", "replace_me", "enter_your", "paste_here"]
+
+    def is_placeholder_value(val):
+        """Check if a value looks like a placeholder rather than a real API key."""
+        if not val or len(val) < 10:  # Real API keys are longer than 10 chars
+            return True
+        val_lower = str(val).lower()
+        # Check if it contains common placeholder patterns
+        return any(pattern in val_lower for pattern in placeholder_patterns)
+
     for key in os.environ:
         for pattern in key_patterns:
             if pattern in key:
                 val = os.environ[key]
                 # Check if it's a real value (not placeholder)
-                is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
-                if not is_placeholder and val:
+                if not is_placeholder_value(val):
                     existing_keys[key] = val
     
     # Find the API keys file using path_utils (implements priority)
@@ -521,19 +530,17 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             for pattern in key_patterns:
                 if pattern in key:
                     val = os.environ[key]
-                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
-                    if is_placeholder:
+                    if is_placeholder_value(val):
                         # Remove placeholder values
                         del os.environ[key]
-        
+
         # Count valid keys loaded
         valid_keys = 0
         for key in os.environ:
             for pattern in key_patterns:
                 if pattern in key:
                     val = os.environ[key]
-                    is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
-                    if not is_placeholder and val:
+                    if not is_placeholder_value(val):
                         valid_keys += 1
         
         # Condensed API key loading message
@@ -558,10 +565,9 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
     for key in os.environ:
         if key.endswith("_API_KEY") or key.endswith("_TOKEN"):
             val = os.environ[key]
-            is_placeholder = any(placeholder in str(val).lower() for placeholder in placeholder_values)
-            if not is_placeholder and val:
+            if not is_placeholder_value(val):
                 found_keys.append(key)
-    
+
     if found_keys:
         # Just show count and names, not values
         key_names = ', '.join(sorted(found_keys))
@@ -571,8 +577,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
 
     # -- Hugging Face login if token available --
     hf_token = os.getenv("HF_TOKEN")
-    is_hf_placeholder = any(placeholder in str(hf_token).lower() for placeholder in placeholder_values) if hf_token else True
-    if hf_token and not is_hf_placeholder:
+    if hf_token and not is_placeholder_value(hf_token):
         try:
             import logging
             import warnings
@@ -590,6 +595,17 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             print("✅ HuggingFace Hub: Logged in")
         except Exception as e:
             # Silently fail if HF login doesn't work
+            pass
+
+    # -- Check OpenRouter credit if API key available --
+    if 'OPENROUTER_API_KEY' in found_keys:
+        try:
+            from .nlp import update_openrouter_credit
+            credit = update_openrouter_credit()
+            if credit is not None:
+                print(f"💰 OpenRouter credit: ${credit:.2f}")
+        except Exception:
+            # Silently fail if credit check doesn't work
             pass
 
     # Print version (condensed)

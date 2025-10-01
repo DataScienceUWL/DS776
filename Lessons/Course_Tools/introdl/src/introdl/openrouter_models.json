@@ -1,0 +1,54 @@
+{
+  "models": {
+    "gpt-4o-mini": {
+      "id": "openai/gpt-4o-mini-2024-07-18",
+      "provider": "openai",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": false
+      }
+    },
+    "gpt-4o": {
+      "id": "openai/gpt-4o-2024-11-20",
+      "provider": "openai",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": false
+      }
+    },
+    "gemini-flash-lite": {
+      "id": "google/gemini-2.5-flash-lite",
+      "provider": "google",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "gemini-flash": {
+      "id": "google/gemini-2.5-flash",
+      "provider": "google",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "claude-haiku": {
+      "id": "anthropic/claude-3.5-haiku",
+      "provider": "anthropic",
+      "json_support": {
+        "json_object": true,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    }
+  },
+  "default_model": "gemini-flash-lite",
+  "cost_warning_thresholds": [0.5, 0.75, 0.9],
+  "student_credit_limit": 15.0,
+  "description": "OpenRouter model configurations for DS776. Models include JSON capability metadata from automated testing.",
+  "last_updated": "2025-09-30"
+}

@@ -57,8 +57,34 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.5.19"
+__version__ = "1.6.7"
 # Version history:
+# 1.6.7 - Added JSON capability metadata to openrouter_models.json
+#         - Created test_model_json_capabilities.py script for automated testing
+#         - Enhanced llm_generate() to intelligently use JSON modes based on model capabilities
+#         - Added get_model_metadata() function and capability filtering to llm_list_models()
+#         - Models now include json_support metadata (json_object, json_schema, strict_schema)
+# 1.6.6 - Fixed module organization: removed duplicated viz functions from nlp.py
+#         - Text generation viz functions now correctly imported from generation.py
+#         - Removed nlp_orig.py (all useful code migrated to nlp.py or generation.py)
+# 1.6.5 - (REVERTED) Mistakenly duplicated viz functions to nlp.py
+# 1.6.4 - Moved clear_pipeline() and print_pipeline_info() from nlp_orig.py to nlp.py
+# 1.6.4 - Moved clear_pipeline() and print_pipeline_info() from nlp_orig.py to nlp.py
+#         - Preparing to deprecate nlp_orig.py (only visualization functions remain there)
+# 1.6.3 - Added OpenRouter credit fetching: displays actual credit in config_paths_keys(), updates cost tracker
+#         - New functions: get_openrouter_credit(), update_openrouter_credit()
+#         - Cost tracking now uses actual account credit instead of fixed baseline
+# 1.6.2 - Added Out/1M column to show_pricing_table for better cost comparison
+# 1.6.1 - CRITICAL FIX: Fixed API key loading bug where empty string in placeholder_values matched all keys
+#         - Refactored is_placeholder_value() to properly detect placeholders vs real API keys
+#         - API keys now load correctly from api_keys.env file
+# 1.6.0 - MAJOR: Refactored nlp.py for OpenRouter-first approach with persistent cost tracking
+#         - New llm_generate(model_name, prompts, mode='text'|'json', ...) signature
+#         - Session-cached pricing lookups, persistent cost tracking in ~/home_workspace/
+#         - JSON mode with schema validation and fallback strategies
+#         - Cost warnings at 50%, 75%, 90% of student credit
+#         - Support for any OpenRouter model, not just predefined ones
+#         - Moved old nlp.py to nlp_orig.py for backward compatibility
 # 1.5.19 - Aggressive subdirectory removal, delete __init__.py files, rename dirs if can't delete
 # 1.5.18 - Force reinstall if old nested structure detected, check actual pip location first
 # 1.5.17 - Complete removal of old nested module structure in auto_update for Hyperstack
@@ -127,15 +153,23 @@ try:
 
     # NLP functions
     from .nlp import (
-        llm_configure,
         llm_generate,
         llm_list_models,
+        llm_configure,
+        display_markdown,
+        show_cost_summary,
+        show_pricing_table,
+        reset_cost_tracker,
+        resolve_model_name,
+        get_model_metadata,
+        get_model_price,
+        get_openrouter_credit,
+        update_openrouter_credit,
         clear_pipeline,
-        print_pipeline_info,
-        display_markdown
+        print_pipeline_info
     )
 
-    # Text generation functions
+    # Text generation visualization functions
     from .generation import (
         model_report,
         generate_top_k_table,
@@ -201,8 +235,11 @@ __all__ = [
     "interactive_mnist_prediction", "plot_transformed_images", "evaluate_classifier",
 
     # NLP
-    "llm_configure", "llm_generate", "llm_list_models", "clear_pipeline",
-    "print_pipeline_info", "display_markdown",
+    "llm_generate", "llm_list_models", "llm_configure", "display_markdown",
+    "show_cost_summary", "show_pricing_table", "reset_cost_tracker",
+    "resolve_model_name", "get_model_metadata", "get_model_price",
+    "get_openrouter_credit", "update_openrouter_credit",
+    "clear_pipeline", "print_pipeline_info",
 
     # Generation
     "model_report", "generate_top_k_table", "generate_greedy_decoding_table",
