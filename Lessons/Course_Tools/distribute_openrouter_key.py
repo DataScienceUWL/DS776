@@ -3,16 +3,17 @@
 OpenRouter API Key Distribution Script
 
 This script automatically retrieves and configures an OpenRouter API key for students
-in the DS776 Deep Learning course. It uses a hashed email mapping to ensure each
+in the DS776 Deep Learning course. It uses a hashed project ID mapping to ensure each
 student receives a unique key without exposing the mapping publicly.
 
 Usage:
     python distribute_openrouter_key.py
 
 The script will:
-    1. Detect the student's email from CoCalc environment
+    1. Detect the student's project ID from CoCalc environment
     2. Retrieve the assigned OpenRouter API key
     3. Update the api_keys.env file in home_workspace
+    4. Create a backup file with the API key
 
 Author: DS776 Course Tools
 Date: 2025-10-02
@@ -27,28 +28,28 @@ from pathlib import Path
 # URL to the hosted key mapping (GitHub Pages)
 KEY_MAPPING_URL = "https://datascienceuwl.github.io/ds776-keys/key_mapping.json"
 
-def get_student_email():
+def get_project_id():
     """
-    Retrieve student email from CoCalc environment variables.
+    Retrieve student's project ID from CoCalc environment variables.
 
-    CoCalc sets COCALC_EMAIL to the student's login email.
+    CoCalc sets COCALC_PROJECT_ID for each project.
     """
-    email = os.environ.get('COCALC_EMAIL', '').strip().lower()
+    project_id = os.environ.get('COCALC_PROJECT_ID', '').strip()
 
-    if not email:
-        print("⚠️  Error: Could not detect student email from environment")
+    if not project_id:
+        print("⚠️  Error: Could not detect project ID from environment")
         print("   This script must be run in CoCalc")
-        print("   Environment variable COCALC_EMAIL is not set")
+        print("   Environment variable COCALC_PROJECT_ID is not set")
         sys.exit(1)
 
-    return email
+    return project_id
 
 def fetch_key_mapping():
     """
     Download the key mapping from GitHub Pages.
 
     Returns:
-        dict: Mapping of email hashes to API keys
+        dict: Mapping of project_id hashes to API keys
     """
     try:
         import urllib.request
@@ -60,22 +61,22 @@ def fetch_key_mapping():
         print(f"   Error: {e}")
         sys.exit(1)
 
-def get_assigned_key(email, mapping):
+def get_assigned_key(project_id, mapping):
     """
-    Retrieve the API key assigned to this student.
+    Retrieve the API key assigned to this student's project.
 
     Args:
-        email: Student email address
+        project_id: Student's CoCalc project ID
         mapping: Key mapping dictionary
 
     Returns:
         str: Assigned API key
     """
-    email_hash = hashlib.sha256(email.encode()).hexdigest()
-    key = mapping.get(email_hash)
+    project_id_hash = hashlib.sha256(project_id.encode()).hexdigest()
+    key = mapping.get(project_id_hash)
 
     if not key:
-        print(f"⚠️  Error: No API key found for email: {email}")
+        print(f"⚠️  Error: No API key found for project ID: {project_id}")
         print("   Please contact the instructor")
         sys.exit(1)
 
@@ -114,6 +115,23 @@ def update_env_file(api_key):
 
     return updated
 
+def create_backup_file(api_key):
+    """
+    Create a backup file with the API key for safekeeping.
+
+    Args:
+        api_key: The OpenRouter API key to save
+    """
+    backup_file = Path.home() / "home_workspace" / "OPENROUTER_API_KEY.txt"
+
+    try:
+        with open(backup_file, 'w') as f:
+            f.write(api_key + '\n')
+        return True
+    except Exception as e:
+        print(f"   ⚠️  Warning: Could not create backup file: {e}")
+        return False
+
 def main():
     """
     Main distribution workflow.
@@ -122,10 +140,10 @@ def main():
     print("DS776 OpenRouter API Key Distribution")
     print("=" * 60)
 
-    # Step 1: Get student email
-    print("\n1. Detecting student email...")
-    email = get_student_email()
-    print(f"   ✓ Email: {email}")
+    # Step 1: Get project ID
+    print("\n1. Detecting project ID...")
+    project_id = get_project_id()
+    print(f"   ✓ Project ID: {project_id}")
 
     # Step 2: Download key mapping
     print("\n2. Downloading key mapping...")
@@ -134,7 +152,7 @@ def main():
 
     # Step 3: Get assigned key
     print("\n3. Retrieving your assigned API key...")
-    api_key = get_assigned_key(email, mapping)
+    api_key = get_assigned_key(project_id, mapping)
     print(f"   ✓ Key retrieved: {api_key[:20]}...")
 
     # Step 4: Update env file
@@ -146,6 +164,11 @@ def main():
         print("   ⚠️  Warning: OPENROUTER_API_KEY line not found in api_keys.env")
         print("   You may need to manually add your key")
 
+    # Step 5: Create backup file
+    print("\n5. Creating backup file...")
+    if create_backup_file(api_key):
+        print("   ✓ Backup file created: ~/home_workspace/OPENROUTER_API_KEY.txt")
+
     # Success message
     print("\n" + "=" * 60)
     print("✓ SUCCESS")
@@ -154,6 +177,7 @@ def main():
     print(f"\nKey: {api_key}")
     print("\nThe key is now available in:")
     print("  ~/home_workspace/api_keys.env")
+    print("  ~/home_workspace/OPENROUTER_API_KEY.txt (backup)")
     print("\nYou can now use OpenRouter models in your notebooks.")
     print("=" * 60)
 
