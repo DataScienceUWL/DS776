@@ -57,8 +57,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.7"
+__version__ = "1.6.8"
 # Version history:
+# 1.6.8 - Added automatic Course_Tools directory cleanup in auto_update_introdl.py
+#         - Removes CoCalc backup files (*~) and obsolete scripts automatically
+#         - Enhanced cleanup_introdl.sh with dynamic paths and Python version detection
+#         - Cleanup runs max once per 7 days via timestamp file
 # 1.6.7 - Added JSON capability metadata to openrouter_models.json
 #         - Created test_model_json_capabilities.py script for automated testing
 #         - Enhanced llm_generate() to intelligently use JSON modes based on model capabilities

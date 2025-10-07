@@ -64,6 +64,9 @@ Homework/Homework_*/Homework_*_Models/
 *.temp
 *.cache
 
+# Course_Tools cleanup timestamp
+Lessons/Course_Tools/.last_cleanup
+
 # Python build artifacts
 *.egg-info/
 build/

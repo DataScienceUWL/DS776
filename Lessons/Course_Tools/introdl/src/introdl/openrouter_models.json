@@ -60,12 +60,72 @@
         "strict_schema": false
       }
     },
+    "gpt-oss-20b": {
+      "id": "openai/gpt-oss-20b:free",
+      "provider": "openai",
+      "parameters": "21B",
+      "architecture": "MoE (4-bit quantized MXFP4)",
+      "notes": "Open-weight model, FREE tier, Apache 2.0 license, runs on 16GB memory",
+      "json_support": {
+        "json_object": true,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    },
+    "gpt-oss-120b": {
+      "id": "openai/gpt-oss-120b",
+      "provider": "openai",
+      "parameters": "117B",
+      "architecture": "MoE (4-bit quantized MXFP4)",
+      "notes": "Open-weight model, Apache 2.0 license, competitive with o4-mini, runs on 80GB GPU, JSON support unreliable",
+      "json_support": {
+        "json_object": false,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    },
+    "llama-3.2-1b": {
+      "id": "meta-llama/llama-3.2-1b-instruct:free",
+      "provider": "meta",
+      "parameters": "1B",
+      "architecture": "dense",
+      "notes": "Open-weight model, FREE tier, efficient edge/mobile model, UNAVAILABLE on OpenRouter (404 error)",
+      "json_support": {
+        "json_object": false,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    },
+    "llama-3.2-3b": {
+      "id": "meta-llama/llama-3.2-3b-instruct",
+      "provider": "meta",
+      "parameters": "3B",
+      "architecture": "dense",
+      "notes": "Open-weight model, very affordable (~$0.018/M), outperforms Gemma 2.6B and Phi 3.5-mini on NLP tasks",
+      "json_support": {
+        "json_object": true,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    },
     "llama-3.3-70b": {
       "id": "meta-llama/llama-3.3-70b-instruct",
       "provider": "meta",
       "parameters": "70B",
       "architecture": "dense",
       "notes": "Open-weight model",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "mistral-nemo": {
+      "id": "mistralai/mistral-nemo",
+      "provider": "mistral",
+      "parameters": "12B",
+      "architecture": "dense",
+      "notes": "Open-weight model, efficient small model",
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -96,60 +156,24 @@
         "strict_schema": true
       }
     },
-    "deepseek-v3": {
-      "id": "deepseek/deepseek-chat-v3-0324",
+    "deepseek-v3-free": {
+      "id": "deepseek/deepseek-chat-v3-0324:free",
       "provider": "deepseek",
       "parameters": "671B total, 37B active",
       "architecture": "MoE",
-      "notes": "Open-weight model, Mixture of Experts",
-      "json_support": {
-        "json_object": true,
-        "json_schema": true,
-        "strict_schema": true
-      }
-    },
-    "llama-4-maverick": {
-      "id": "meta-llama/llama-4-maverick",
-      "provider": "meta",
-      "parameters": "400B total, 17B active",
-      "architecture": "MoE (128 experts)",
-      "notes": "Open-weight model, multimodal capable",
-      "json_support": {
-        "json_object": true,
-        "json_schema": true,
-        "strict_schema": true
-      }
-    },
-    "llama-405b": {
-      "id": "meta-llama/llama-3.1-405b-instruct",
-      "provider": "meta",
-      "parameters": "405B",
-      "architecture": "dense",
-      "notes": "Open-weight model",
-      "json_support": {
-        "json_object": true,
-        "json_schema": true,
-        "strict_schema": true
-      }
-    },
-    "qwen3-235b": {
-      "id": "qwen/qwen3-235b-a22b",
-      "provider": "qwen",
-      "parameters": "235B total, 22B active",
-      "architecture": "MoE (128 experts)",
-      "notes": "Open-weight model, latest Qwen3 generation (July 2025), supports thinking mode",
+      "notes": "Open-weight model, FREE tier, Mixture of Experts, 164K context",
       "json_support": {
         "json_object": true,
         "json_schema": false,
         "strict_schema": false
       }
     },
-    "mistral-nemo": {
-      "id": "mistralai/mistral-nemo",
-      "provider": "mistral",
-      "parameters": "12B",
-      "architecture": "dense",
-      "notes": "Open-weight model, efficient small model",
+    "deepseek-v3": {
+      "id": "deepseek/deepseek-chat-v3-0324",
+      "provider": "deepseek",
+      "parameters": "671B total, 37B active",
+      "architecture": "MoE",
+      "notes": "Open-weight model, Mixture of Experts",
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -164,6 +188,6 @@
     0.9
   ],
   "student_credit_limit": 15.0,
-  "description": "OpenRouter model configurations for DS776. Includes model metadata and JSON capability data from automated testing.",
-  "last_updated": "2025-10-02"
+  "description": "OpenRouter model configurations for DS776 NLP lessons. Removed: llama-405b, qwen3-235b, llama-4-maverick (cost/value). Added: OpenAI gpt-oss models, llama-3.2 1B/3B, deepseek-v3:free for better cost efficiency and scaling experiments. Includes model metadata and JSON capability data from automated testing.",
+  "last_updated": "2025-10-03"
 }

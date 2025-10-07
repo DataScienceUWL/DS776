@@ -143,9 +143,10 @@ def is_hyperstack():
     return False
 
 
-def clean_source_build_artifacts(introdl_dir):
+def clean_source_build_artifacts(introdl_dir, verbose_mode=False):
     """Clean build artifacts from the source directory."""
-    print_info("Cleaning source directory build artifacts...", force=True)
+    if verbose_mode:
+        print_info("Cleaning source directory build artifacts...", force=True)
 
     artifacts = [
         introdl_dir / "build",
@@ -159,7 +160,8 @@ def clean_source_build_artifacts(introdl_dir):
             try:
                 import shutil
                 shutil.rmtree(artifact)
-                print_info(f"  Removed {artifact.name}", force=True)
+                if verbose_mode:
+                    print_info(f"  Removed {artifact.name}", force=True)
             except Exception as e:
                 if verbose:
                     print_warning(f"  Could not remove {artifact.name}: {e}")
@@ -173,6 +175,169 @@ def clean_source_build_artifacts(introdl_dir):
                 print_info(f"  Removed cache: {pycache.name}")
         except:
             pass
+
+    # Remove all .pyc files (bytecode)
+    try:
+        import subprocess
+        subprocess.run(["find", str(introdl_dir), "-name", "*.pyc", "-delete"],
+                      capture_output=True, timeout=5)
+    except:
+        pass
+
+
+def clean_all_installations():
+    """Comprehensively clean introdl from all possible installation locations."""
+    import shutil
+
+    # Build list of all possible site-packages locations
+    locations = [
+        Path(site.getusersitepackages()),
+        Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        Path(sys.prefix) / "local" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+        Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+        Path("/usr/lib/python3/dist-packages"),
+    ]
+
+    # Add paths from sys.path
+    for p in sys.path:
+        if 'site-packages' in p or 'dist-packages' in p:
+            path_obj = Path(p)
+            if path_obj.exists():
+                locations.append(path_obj)
+
+    # Remove duplicates
+    locations = list(set(loc for loc in locations if loc.exists()))
+
+    cleaned_any = False
+    for location in locations:
+        introdl_path = location / "introdl"
+
+        # Remove introdl directory
+        if introdl_path.exists():
+            try:
+                shutil.rmtree(introdl_path)
+                if verbose:
+                    print_info(f"Removed introdl from: {location}")
+                cleaned_any = True
+            except PermissionError:
+                print_warning(f"Permission denied: {introdl_path}")
+                print_error("Manual cleanup required - run:")
+                print_info(f"  sudo rm -rf {introdl_path}", force=True)
+            except Exception as e:
+                if verbose:
+                    print_warning(f"Could not remove {introdl_path}: {e}")
+
+        # Remove egg-info and dist-info directories
+        for info_dir in location.glob("introdl*.egg-info"):
+            try:
+                shutil.rmtree(info_dir)
+                if verbose:
+                    print_info(f"Removed: {info_dir.name}")
+                cleaned_any = True
+            except:
+                pass
+
+        for info_dir in location.glob("introdl*.dist-info"):
+            try:
+                shutil.rmtree(info_dir)
+                if verbose:
+                    print_info(f"Removed: {info_dir.name}")
+                cleaned_any = True
+            except:
+                pass
+
+    if cleaned_any and verbose:
+        print_status("Cleaned all installation locations")
+
+    return cleaned_any
+
+
+def clean_course_tools_directory(course_tools_dir, force=False):
+    """
+    Clean obsolete files from Course_Tools directory.
+    Only runs on first execution or when forced (via --verbose).
+
+    Removes:
+    - Files with ~ suffix (CoCalc backup files)
+    - Obsolete scripts from old versions
+    - __pycache__ directory in Course_Tools root
+
+    Uses timestamp file to avoid repeated cleanup (runs max once per 7 days).
+    """
+    import time
+    import shutil
+
+    # Check timestamp file to avoid repeated cleanup
+    timestamp_file = course_tools_dir / ".last_cleanup"
+
+    # Skip if cleaned recently (within 7 days) unless forced
+    if not force and timestamp_file.exists():
+        try:
+            last_cleanup = timestamp_file.stat().st_mtime
+            days_since = (time.time() - last_cleanup) / 86400
+            if days_since < 7:
+                return False  # Skip cleanup
+        except:
+            pass  # If we can't read timestamp, proceed with cleanup
+
+    cleaned_any = False
+
+    # Remove all files with ~ suffix (CoCalc backup files)
+    for tilde_file in course_tools_dir.glob("*~"):
+        try:
+            tilde_file.unlink()
+            if verbose:
+                print_info(f"Removed backup: {tilde_file.name}")
+            cleaned_any = True
+        except Exception as e:
+            if verbose:
+                print_warning(f"Could not remove {tilde_file.name}: {e}")
+
+    # Remove specific obsolete files (from old package structure migration)
+    obsolete_files = [
+        "diagnose_hyperstack.py",
+        "diagnose_introdl.py",
+        "force_clean_introdl.py",
+        "hyperstack_clean_introdl.py",
+        "update_introdl.py",
+        "update_introdl.sh",
+        "setup_course.sh",
+        "To_Do_List.ipynb"
+    ]
+
+    for filename in obsolete_files:
+        filepath = course_tools_dir / filename
+        if filepath.exists():
+            try:
+                filepath.unlink()
+                if verbose:
+                    print_info(f"Removed obsolete: {filename}")
+                cleaned_any = True
+            except Exception as e:
+                if verbose:
+                    print_warning(f"Could not remove {filename}: {e}")
+
+    # Remove __pycache__ in Course_Tools root (not in introdl/)
+    pycache = course_tools_dir / "__pycache__"
+    if pycache.exists():
+        try:
+            shutil.rmtree(pycache)
+            if verbose:
+                print_info("Removed __pycache__ from Course_Tools")
+            cleaned_any = True
+        except Exception as e:
+            if verbose:
+                print_warning(f"Could not remove __pycache__: {e}")
+
+    # Update timestamp file
+    if cleaned_any or force:
+        try:
+            timestamp_file.touch()
+        except:
+            pass  # Don't fail if we can't write timestamp
+
+    return cleaned_any
 
 
 def main():
@@ -209,6 +374,15 @@ def main():
         print("")
         print_info("If you're in CoCalc, contact the instructor - the files may not be synced.", force=True)
         sys.exit(1)
+
+    # CRITICAL: Clean source build artifacts FIRST, before any version detection
+    # This prevents pip from using stale build artifacts that may have old structure
+    clean_source_build_artifacts(introdl_dir, verbose_mode=False)
+
+    # Clean Course_Tools directory of obsolete files (runs max once per 7 days)
+    cleaned_course_tools = clean_course_tools_directory(script_dir, force=verbose)
+    if cleaned_course_tools and not verbose:
+        print_status("Cleaned Course_Tools directory")
 
     # Get source version from __init__.py
     source_version = None
@@ -330,9 +504,9 @@ def main():
 
     # Install/update if needed
     if needs_update:
-        # On Hyperstack, always clean source build artifacts first
-        if on_hyperstack:
-            clean_source_build_artifacts(introdl_dir)
+        # Clean source build artifacts again in verbose mode (already done silently above)
+        if verbose or on_hyperstack:
+            clean_source_build_artifacts(introdl_dir, verbose_mode=True)
 
         if not verbose:
             # Simple message for non-verbose mode
@@ -341,169 +515,16 @@ def main():
             print("\n📦 Installing/updating introdl...")
             print("=" * 32)
 
-        # CRITICAL: Find the ACTUAL installation location using pip show
-        # This is the most reliable way to find where the package is really installed
-        actual_install_location = None
-        try:
-            result = subprocess.run([sys.executable, "-m", "pip", "show", "introdl"],
-                                  capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if line.startswith('Location:'):
-                        actual_install_location = Path(line.split(':', 1)[1].strip())
-                        if verbose:
-                            print_info(f"Found introdl installed at: {actual_install_location}")
-                        break
-        except:
-            pass
+        # Comprehensive cleanup of all installations
+        if verbose:
+            print_info("Removing old installations from all locations...")
 
-        # If we found the actual location, check if it has the old structure and remove it
-        if actual_install_location and actual_install_location.exists():
-            introdl_path = actual_install_location / "introdl"
-            if introdl_path.exists():
-                # Check for old nested structure
-                old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
-                has_old_structure = any((introdl_path / subdir).exists() for subdir in old_subdirs)
+        # Use our comprehensive cleanup function
+        cleaned = clean_all_installations()
 
-                if has_old_structure:
-                    print_warning(f"⚠️  OLD nested structure detected at: {introdl_path}")
-                    print_info("Aggressively removing old package and subdirectories...", force=True)
-
-                    # On Hyperstack with write permissions, be very aggressive
-                    if on_hyperstack:
-                        print_info("Hyperstack mode: Complete removal of old structure", force=True)
-
-                    # First try to remove just the old subdirectories
-                    old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
-                    for subdir in old_subdirs:
-                        subdir_path = introdl_path / subdir
-                        if subdir_path.exists():
-                            try:
-                                import shutil
-                                shutil.rmtree(subdir_path)
-                                print_info(f"  Removed old subdir: {subdir}/", force=True)
-                            except PermissionError:
-                                # Try to at least delete the __init__.py files to break imports
-                                try:
-                                    init_file = subdir_path / "__init__.py"
-                                    if init_file.exists():
-                                        init_file.unlink()
-                                        print_info(f"  Deleted {subdir}/__init__.py to break imports", force=True)
-
-                                    # Also try to rename the directory to break imports
-                                    try:
-                                        subdir_path.rename(subdir_path.parent / f"_old_{subdir}")
-                                        print_info(f"  Renamed {subdir}/ to _old_{subdir}/ to break imports", force=True)
-                                    except:
-                                        pass
-                                except Exception as e2:
-                                    print_warning(f"  Could not fully remove {subdir}: {e2}")
-                            except Exception as e:
-                                print_warning(f"  Error removing {subdir}: {e}")
-
-                            # On Hyperstack, also try to empty Python files if removal failed
-                            if on_hyperstack and subdir_path.exists():
-                                try:
-                                    for py_file in subdir_path.rglob("*.py"):
-                                        try:
-                                            py_file.write_text("# File disabled by cleanup\n")
-                                            if verbose:
-                                                print_info(f"  Emptied {py_file.name}")
-                                        except:
-                                            pass
-                                except:
-                                    pass
-
-                    # Now try to remove the entire introdl directory
-                    try:
-                        import shutil
-                        shutil.rmtree(introdl_path)
-                        print_status(f"✅ Completely removed old package from: {actual_install_location}")
-                    except PermissionError as e:
-                        print_error(f"Permission denied removing {introdl_path}")
-                        print_error("⚠️  MANUAL INTERVENTION REQUIRED!")
-                        print_info("Please run this command manually:", force=True)
-                        print_info(f"  sudo rm -rf {introdl_path}", force=True)
-                        print_info("Then restart the kernel and run this cell again.", force=True)
-                        sys.exit(1)  # Exit to force user to handle this
-                    except Exception as e:
-                        print_warning(f"Could not fully remove {introdl_path}: {e}")
-                        # Continue anyway - maybe partial removal will help
-
-                # Also check for and remove egg-info
-                for egg_info in actual_install_location.glob("introdl*.egg-info"):
-                    try:
-                        import shutil
-                        shutil.rmtree(egg_info)
-                        if verbose:
-                            print_info(f"Removed egg-info: {egg_info}")
-                    except:
-                        pass
-
-        # Also check common locations like /usr/local/lib/python*/dist-packages
-        # This is especially important for Hyperstack
-        common_locations = [
-            Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
-            Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
-            Path("/usr/local/lib/python3.12/dist-packages"),  # Hyperstack often uses 3.12
-            Path("/usr/local/lib/python3.11/dist-packages"),
-            Path("/usr/local/lib/python3.10/dist-packages"),
-        ]
-
-        try:
-            common_locations.append(Path(site.getusersitepackages()))
-        except:
-            pass
-
-        for location in common_locations:
-            if location.exists():
-                introdl_path = location / "introdl"
-                if introdl_path.exists():
-                    # Check for old structure
-                    old_subdirs = ['utils', 'nlp', 'idlmam', 'visul']
-                    has_old_structure = any((introdl_path / subdir).exists() for subdir in old_subdirs)
-
-                    if has_old_structure:
-                        print_warning(f"OLD structure found at: {location}")
-
-                        # Aggressively remove subdirectories
-                        for subdir in old_subdirs:
-                            subdir_path = introdl_path / subdir
-                            if subdir_path.exists():
-                                try:
-                                    import shutil
-                                    shutil.rmtree(subdir_path)
-                                    print_info(f"  Removed: {subdir}/", force=True)
-                                except PermissionError:
-                                    # At minimum, try to break imports
-                                    try:
-                                        init_file = subdir_path / "__init__.py"
-                                        if init_file.exists():
-                                            init_file.unlink()
-                                            print_info(f"  Deleted {subdir}/__init__.py", force=True)
-                                    except:
-                                        pass
-                                    try:
-                                        subdir_path.rename(subdir_path.parent / f"_broken_{subdir}")
-                                        print_info(f"  Renamed to _broken_{subdir}/", force=True)
-                                    except:
-                                        pass
-                                except Exception as e:
-                                    if verbose:
-                                        print_warning(f"  Could not remove {subdir}: {e}")
-
-                        # Try to remove entire directory
-                        try:
-                            import shutil
-                            shutil.rmtree(introdl_path)
-                            print_status(f"Removed entire old package from: {location}")
-                        except PermissionError:
-                            print_error(f"⚠️  PERMISSION DENIED at {introdl_path}")
-                            print_error("Manual removal required - run:")
-                            print_info(f"  sudo rm -rf {introdl_path}", force=True)
-                        except Exception as e:
-                            if verbose:
-                                print_warning(f"Could not fully remove {introdl_path}: {e}")
+        if cleaned or has_old_structure:
+            if not verbose:
+                print_status("Removed old package installations")
 
         # Clear Python's module cache on Hyperstack
         if on_hyperstack:
