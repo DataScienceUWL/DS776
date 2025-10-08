@@ -27,6 +27,7 @@ from introdl.utils import load_model, load_results
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="tqdm.autonotebook")
 from tqdm.autonotebook import tqdm
+from PIL import Image
 
 def train_one_epoch(model, optimizer, train_loader, val_loader, device, map_metric, scheduler, step_per_batch=False):
     '''
