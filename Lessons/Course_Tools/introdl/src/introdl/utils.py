@@ -1628,3 +1628,60 @@ def convert_nb_to_html(output_filename="converted.html", notebook_path=None, tem
             print(f"[SUCCESS] HTML export complete: {output_dir / output_filename.name}")
         else:
             print("[ERROR] nbconvert failed:\n", result.stderr)
+
+def print_model_freeze_summary(model):
+    """
+    Print a summary report of frozen and unfrozen parameters in a PyTorch model.
+    
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The PyTorch model to analyze.
+    """
+    print("=" * 80)
+    print("MODEL FREEZE SUMMARY")
+    print("=" * 80)
+    
+    # Track frozen and unfrozen parameters
+    frozen_layers = []
+    unfrozen_layers = []
+    total_frozen_params = 0
+    total_unfrozen_params = 0
+    
+    for name, param in model.named_parameters():
+        num_params = param.numel()
+        if param.requires_grad:
+            unfrozen_layers.append(name)
+            total_unfrozen_params += num_params
+        else:
+            frozen_layers.append(name)
+            total_frozen_params += num_params
+    
+    total_params = total_frozen_params + total_unfrozen_params
+    
+    # Print summary statistics
+    print(f"\nParameter Tensors:")
+    print(f"  Unfrozen (trainable): {len(unfrozen_layers)}")
+    print(f"  Frozen (not trainable): {len(frozen_layers)}")
+    print(f"  Total: {len(unfrozen_layers) + len(frozen_layers)}")
+    
+    print(f"\nParameter Counts:")
+    print(f"  Unfrozen (trainable): {total_unfrozen_params:,}")
+    print(f"  Frozen (not trainable): {total_frozen_params:,}")
+    print(f"  Total: {total_params:,}")
+    
+    if total_params > 0:
+        print(f"\nPercentage trainable: {100 * total_unfrozen_params / total_params:.2f}%")
+    
+    # Determine what to print based on freeze state
+    if len(frozen_layers) == 0:
+        print("\nAll layers are unfrozen (fully trainable model)")
+    elif len(unfrozen_layers) == 0:
+        print("\nAll layers are frozen (no trainable parameters)")
+    else:
+        # Mixed case - show only unfrozen layers
+        print(f"\nUnfrozen layers ({len(unfrozen_layers)}):")
+        for name in unfrozen_layers:
+            print(f"  - {name}")
+    
+    print("=" * 80)

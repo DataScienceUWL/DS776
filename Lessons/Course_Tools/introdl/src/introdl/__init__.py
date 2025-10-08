@@ -133,7 +133,8 @@ try:
         convert_nb_to_html,
         wrap_print_text,
         classifier_predict,
-        detect_jupyter_environment
+        detect_jupyter_environment,
+        print_model_freeze_summary
     )
 
     # Training functions
@@ -230,6 +231,7 @@ __all__ = [
     # Core utilities
     "config_paths_keys", "get_device", "load_model", "load_results", "summarizer",
     "create_CIFAR10_loaders", "convert_nb_to_html", "wrap_print_text", "classifier_predict",
+    "detect_jupyter_environment", "print_model_freeze_summary",
 
     # Training
     "train_network", "train_simple_network", "visualize2DSoftmax",
