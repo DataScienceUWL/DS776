@@ -59,9 +59,9 @@ def suppress_stderr():
 
 __version__ = "1.6.11"
 # Version history:
-# 1.6.11 - Fixed PyTorch/TorchVision compatibility: constrained torch 2.7.x and torchvision 0.22.x
-#          - Prevents incompatibility warnings on fresh installs
-#          - Uses 2.7.x for better ecosystem compatibility (ultralytics, transformers, etc.)
+# 1.6.11 - Fixed PyTorch/TorchVision compatibility: require torch>=2.8.0 and torchvision>=0.23.0
+#          - Matches NVIDIA-optimized builds in Hyperstack images
+#          - Upgrades torchvision to 0.23 to resolve incompatibility with torch 2.8
 # 1.6.10 - Updated llm_get_credits() to always fetch live credit from OpenRouter API
 #          - Now returns actual remaining credit, not just tracker-based estimate
 #          - Automatically updates cost tracker with live credit on each call
