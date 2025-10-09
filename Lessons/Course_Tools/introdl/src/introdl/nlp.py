@@ -293,6 +293,28 @@ def show_pricing_table():
     print("\nNote: Prices fetched from OpenRouter API. Add new models to openrouter_models.json")
 
 
+def llm_get_credits() -> Dict[str, float]:
+    """
+    Get OpenRouter credit information.
+
+    Returns:
+        Dictionary with 'limit' (baseline credit), 'usage' (total spent), and 'remaining'
+
+    Example:
+        >>> credits = llm_get_credits()
+        >>> print(f"Remaining: ${credits['limit'] - credits['usage']:.2f}")
+    """
+    data = _load_cost_tracker()
+    limit = data.get("baseline_credit", 15.0)
+    usage = data.get("total_spend", 0.0)
+
+    return {
+        'limit': limit,
+        'usage': usage,
+        'remaining': limit - usage
+    }
+
+
 # ============================================================================
 # Cost Tracking (Persistent)
 # ============================================================================
