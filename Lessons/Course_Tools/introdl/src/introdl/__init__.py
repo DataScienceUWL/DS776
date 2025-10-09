@@ -57,8 +57,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.12"
+__version__ = "1.6.13"
 # Version history:
+# 1.6.13 - Added init_cost_tracking() function to properly initialize LLM cost tracking
+#          - Call after config_paths_keys() to pre-load pricing and establish credit baseline
+#          - Ensures print_cost parameter works correctly in llm_generate()
 # 1.6.12 - CRITICAL FIX: Include openrouter_models.json in package installation
 #          - Added package-data configuration to pyproject.toml
 #          - Fixes "file not found" error when using llm_generate() and related functions
@@ -173,6 +176,7 @@ try:
         llm_list_models,
         llm_get_credits,
         llm_configure,
+        init_cost_tracking,
         display_markdown,
         show_cost_summary,
         show_pricing_table,
@@ -253,8 +257,8 @@ __all__ = [
     "interactive_mnist_prediction", "plot_transformed_images", "evaluate_classifier",
 
     # NLP
-    "llm_generate", "llm_list_models", "llm_get_credits", "llm_configure", "display_markdown",
-    "show_cost_summary", "show_pricing_table", "reset_cost_tracker",
+    "llm_generate", "llm_list_models", "llm_get_credits", "llm_configure", "init_cost_tracking",
+    "display_markdown", "show_cost_summary", "show_pricing_table", "reset_cost_tracker",
     "resolve_model_name", "get_model_metadata", "get_model_price",
     "get_openrouter_credit", "update_openrouter_credit",
     "clear_pipeline", "print_pipeline_info",

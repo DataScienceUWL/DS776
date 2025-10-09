@@ -543,6 +543,46 @@ def reset_cost_tracker():
     print("✅ Cost tracker reset")
 
 
+def init_cost_tracking():
+    """
+    Initialize the cost tracking system.
+
+    Call this at the beginning of your notebook (after config_paths_keys()) to:
+    - Initialize cost tracking file if it doesn't exist
+    - Fetch current OpenRouter credit and update baseline
+    - Pre-load pricing data cache
+
+    This ensures estimate_cost displays work correctly.
+
+    Example:
+        >>> from introdl.utils import config_paths_keys
+        >>> from introdl.nlp import init_cost_tracking
+        >>>
+        >>> paths = config_paths_keys()  # Loads API keys
+        >>> init_cost_tracking()         # Initialize cost tracking
+    """
+    # Ensure cost tracker file exists
+    data = _load_cost_tracker()
+
+    # Fetch and update OpenRouter credit baseline
+    credit = update_openrouter_credit()
+
+    # Pre-load pricing cache (will fetch from OpenRouter API)
+    global _PRICING_CACHE
+    if not _PRICING_CACHE:
+        try:
+            _PRICING_CACHE = _fetch_openrouter_pricing()
+            print(f"✅ Loaded pricing for {len(_PRICING_CACHE)} models")
+        except Exception as e:
+            print(f"⚠️  Could not pre-load pricing: {e}")
+
+    # Report status
+    if credit is not None:
+        print(f"✅ Cost tracking initialized (${credit:.2f} credit remaining)")
+    else:
+        print("✅ Cost tracking initialized (could not fetch live credit)")
+
+
 # ============================================================================
 # JSON Helpers
 # ============================================================================
