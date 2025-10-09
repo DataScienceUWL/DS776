@@ -57,8 +57,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.13"
+__version__ = "1.6.14"
 # Version history:
+# 1.6.14 - Fixed show_pricing_table() to handle new model metadata dict format
+#          - Extract 'id' field from model_data dict instead of treating it as a string
 # 1.6.13 - Added init_cost_tracking() function to properly initialize LLM cost tracking
 #          - Call after config_paths_keys() to pre-load pricing and establish credit baseline
 #          - Ensures print_cost parameter works correctly in llm_generate()

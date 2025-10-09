@@ -281,14 +281,17 @@ def show_pricing_table():
     print(f"{'Short Name':<20}{'Model ID':<40}{'In/1K':>12}{'Out/1K':>12}{'In/1M':>11}{'Out/1M':>11}")
     print("-" * 110)
 
-    for short, mid in sorted(model_map.items()):
-        inp_tok, out_tok = get_model_price(mid)
+    for short, model_data in sorted(model_map.items()):
+        # Extract model ID from metadata (handle both old string format and new dict format)
+        model_id = model_data.get('id') if isinstance(model_data, dict) else model_data
+
+        inp_tok, out_tok = get_model_price(model_id)
         inp_1k = inp_tok * 1000
         out_1k = out_tok * 1000
         inp_1m = inp_tok * 1_000_000
         out_1m = out_tok * 1_000_000
 
-        print(f"{short:<20}{mid:<40}${inp_1k:>11.4f}${out_1k:>11.4f}${inp_1m:>10.2f}${out_1m:>10.2f}")
+        print(f"{short:<20}{model_id:<40}${inp_1k:>11.4f}${out_1k:>11.4f}${inp_1m:>10.2f}${out_1m:>10.2f}")
 
     print("\nNote: Prices fetched from OpenRouter API. Add new models to openrouter_models.json")
 
