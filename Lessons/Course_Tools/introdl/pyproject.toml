@@ -54,5 +54,8 @@ dependencies = [
 package-dir = {"" = "src"}  # Tell setuptools where to find your packages
 packages = {find = {where = ["src"]}}  # Use find directive for package discovery
 
+[tool.setuptools.package-data]
+introdl = ["*.json"]  # Include JSON files (openrouter_models.json)
+
 [tool.setuptools.dynamic]
 version = {attr = "introdl.__version__"}  # Get version from __init__.py

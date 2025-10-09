@@ -57,8 +57,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.11"
+__version__ = "1.6.12"
 # Version history:
+# 1.6.12 - CRITICAL FIX: Include openrouter_models.json in package installation
+#          - Added package-data configuration to pyproject.toml
+#          - Fixes "file not found" error when using llm_generate() and related functions
 # 1.6.11 - Restored flexible torch/torchvision dependencies (no version constraints on torch)
 #          - Accepts pre-installed NVIDIA-optimized builds in Hyperstack
 #          - Avoids dependency conflicts during installation
