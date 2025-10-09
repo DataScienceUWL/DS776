@@ -728,6 +728,14 @@ def llm_generate(
                 # Basic JSON mode
                 api_params["response_format"] = {"type": "json_object"}
 
+        # Disable reasoning for deepseek models to reduce tokens/cost
+        if model_id.startswith("deepseek/"):
+            api_params["extra_body"] = {
+                "reasoning": {
+                    "enabled": False
+                }
+            }
+
         # Make API call
         try:
             response = client.chat.completions.create(**api_params)

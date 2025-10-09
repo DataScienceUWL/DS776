@@ -155,6 +155,18 @@
         "json_schema": true,
         "strict_schema": true
       }
+    },
+    "deepseek-v3.1": {
+      "id": "deepseek/deepseek-chat-v3.1",
+      "provider": "deepseek",
+      "parameters": "671B total, 37B active",
+      "architecture": "MoE",
+      "notes": "Open-weight model, hybrid reasoning model with reasoning disabled for faster/cheaper responses",
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
     }
   },
   "default_model": "gemini-flash-lite",

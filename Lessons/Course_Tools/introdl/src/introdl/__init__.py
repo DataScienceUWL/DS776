@@ -57,8 +57,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.14"
+__version__ = "1.6.15"
 # Version history:
+# 1.6.15 - Added deepseek-v3.1 (deepseek/deepseek-chat-v3.1) with automatic reasoning disabled
+#          - llm_generate() now automatically disables reasoning for deepseek models (~75% token reduction)
+#          - Updated model list: removed free-tier models, added paid variants of llama-3.2-1b and gpt-oss-20b
 # 1.6.14 - Fixed show_pricing_table() to handle new model metadata dict format
 #          - Extract 'id' field from model_data dict instead of treating it as a string
 # 1.6.13 - Added init_cost_tracking() function to properly initialize LLM cost tracking
