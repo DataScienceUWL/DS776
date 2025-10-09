@@ -311,8 +311,6 @@ def display_yolo_predictions(yaml_file, model, num_samples=3, imgsz=640, conf=0.
     - max_iou_threshold (float): Maximum IoU threshold for NMS filtering (default: 0.5).
     """
 
-    from PIL import Image
-
     # Load the dataset from the yaml file
     with open(yaml_file, 'r') as file:
         dataset_info = yaml.safe_load(file)
