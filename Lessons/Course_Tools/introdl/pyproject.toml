@@ -41,10 +41,10 @@ dependencies = [
     "seqeval",
     "spacy",
     "timm",
-    "torch",
+    "torch~=2.8.0",
     "torchinfo",
     "torchmetrics",
-    "torchvision>=0.15.0",
+    "torchvision~=0.23.0",
     "tqdm",
     "transformers>=4.49.0",
     "ultralytics"

@@ -57,8 +57,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.10"
+__version__ = "1.6.11"
 # Version history:
+# 1.6.11 - Fixed PyTorch/TorchVision compatibility: pinned torch~=2.8.0 and torchvision~=0.23.0
+#          - Prevents incompatibility warnings on fresh installs
 # 1.6.10 - Updated llm_get_credits() to always fetch live credit from OpenRouter API
 #          - Now returns actual remaining credit, not just tracker-based estimate
 #          - Automatically updates cost tracker with live credit on each call
