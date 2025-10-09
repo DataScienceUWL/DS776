@@ -295,24 +295,55 @@ def show_pricing_table():
 
 def llm_get_credits() -> Dict[str, float]:
     """
-    Get OpenRouter credit information.
+    Get OpenRouter credit information (fetches live from API).
+
+    Always fetches the current credit balance from OpenRouter API and updates
+    the local cost tracker. Returns both API-reported credit and tracker-based usage.
 
     Returns:
-        Dictionary with 'limit' (baseline credit), 'usage' (total spent), and 'remaining'
+        Dictionary with:
+        - 'limit': Total credit limit from OpenRouter (USD)
+        - 'usage': Total spent according to local tracker (USD)
+        - 'remaining': Actual remaining credit from OpenRouter API (USD)
+        - 'api_credit': Same as 'remaining' (for clarity)
 
     Example:
         >>> credits = llm_get_credits()
-        >>> print(f"Remaining: ${credits['limit'] - credits['usage']:.2f}")
+        >>> print(f"Remaining: ${credits['remaining']:.2f}")
+        >>> print(f"Used (tracker): ${credits['usage']:.2f}")
     """
-    data = _load_cost_tracker()
-    limit = data.get("baseline_credit", 15.0)
-    usage = data.get("total_spend", 0.0)
+    # Fetch live credit from OpenRouter API
+    actual_credit = get_openrouter_credit()
 
-    return {
-        'limit': limit,
-        'usage': usage,
-        'remaining': limit - usage
-    }
+    # Load local tracker
+    data = _load_cost_tracker()
+
+    if actual_credit is not None:
+        # Update tracker with actual credit
+        data['baseline_credit'] = actual_credit
+        data['actual_credit'] = actual_credit
+        data['credit_last_checked'] = datetime.now().isoformat()
+        _save_cost_tracker(data)
+
+        return {
+            'limit': actual_credit,  # Use API credit as the limit
+            'usage': data.get('total_spend', 0.0),
+            'remaining': actual_credit,
+            'api_credit': actual_credit
+        }
+    else:
+        # Fallback to tracker-based estimates if API call fails
+        limit = data.get("baseline_credit", 15.0)
+        usage = data.get("total_spend", 0.0)
+
+        print("⚠️  Could not fetch live credit from OpenRouter API, using local tracker estimate")
+
+        return {
+            'limit': limit,
+            'usage': usage,
+            'remaining': limit - usage,
+            'api_credit': None
+        }
 
 
 # ============================================================================

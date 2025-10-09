@@ -57,8 +57,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.9"
+__version__ = "1.6.10"
 # Version history:
+# 1.6.10 - Updated llm_get_credits() to always fetch live credit from OpenRouter API
+#          - Now returns actual remaining credit, not just tracker-based estimate
+#          - Automatically updates cost tracker with live credit on each call
 # 1.6.9 - Added llm_get_credits() function for easy credit balance checking
 #         - Returns dict with 'limit', 'usage', and 'remaining' keys
 # 1.6.8 - Added automatic Course_Tools directory cleanup in auto_update_introdl.py
