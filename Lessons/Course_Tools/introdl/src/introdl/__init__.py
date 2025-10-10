@@ -57,8 +57,16 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.15"
+__version__ = "1.6.16"
 # Version history:
+# 1.6.16 - MAJOR REFACTOR: Simplified multi-provider LLM support in llm_generate()
+#          - Removed llm_provider parameter - now uses api_key and base_url instead
+#          - Added cost_per_m_in and cost_per_m_out for manual cost tracking (non-OpenRouter providers)
+#          - Defaults to OpenRouter with automatic cost tracking (unchanged behavior)
+#          - Works with ANY OpenAI-compatible API by passing api_key + base_url
+#          - Removed complex _init_client() function, replaced with simple _init_openrouter_client()
+#          - Updated L07_Other_APIs.ipynb with simplified multi-provider examples
+#          - See Developer/Notes/Multi_Provider_LLM_Guide.md for full documentation
 # 1.6.15 - Added deepseek-v3.1 (deepseek/deepseek-chat-v3.1) with automatic reasoning disabled
 #          - llm_generate() now automatically disables reasoning for deepseek models (~75% token reduction)
 #          - Updated model list: removed free-tier models, added paid variants of llama-3.2-1b and gpt-oss-20b

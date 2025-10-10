@@ -1,26 +1,17 @@
 {
   "models": {
-    "gpt-4o-mini": {
-      "id": "openai/gpt-4o-mini-2024-07-18",
-      "provider": "openai",
-      "parameters": "~8B",
-      "architecture": "dense (possibly MoE)",
+    "claude-haiku": {
+      "id": "anthropic/claude-3.5-haiku",
+      "provider": "anthropic",
+      "parameters": "~30-50B",
+      "size": "~30-50B",
+      "architecture": "dense",
+      "release_date": "2024-10-22",
       "notes": "Commercial model, size estimated",
+      "open_weights": false,
       "json_support": {
         "json_object": true,
-        "json_schema": true,
-        "strict_schema": false
-      }
-    },
-    "gpt-4o": {
-      "id": "openai/gpt-4o-2024-11-20",
-      "provider": "openai",
-      "parameters": "~200B",
-      "architecture": "possibly MoE",
-      "notes": "Commercial model, size estimated",
-      "json_support": {
-        "json_object": true,
-        "json_schema": true,
+        "json_schema": false,
         "strict_schema": false
       }
     },
@@ -28,8 +19,11 @@
       "id": "google/gemini-2.5-flash-lite",
       "provider": "google",
       "parameters": "~5B",
+      "size": "~5B",
       "architecture": "dense",
+      "release_date": "2025-09-25",
       "notes": "Commercial model, size estimated",
+      "open_weights": false,
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -40,47 +34,29 @@
       "id": "google/gemini-2.5-flash",
       "provider": "google",
       "parameters": "~20B",
+      "size": "~20B",
       "architecture": "dense",
+      "release_date": "2025-04-17",
       "notes": "Commercial model, size estimated",
+      "open_weights": false,
       "json_support": {
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
       }
     },
-    "claude-haiku": {
-      "id": "anthropic/claude-3.5-haiku",
-      "provider": "anthropic",
-      "parameters": "~30-50B",
-      "architecture": "dense",
-      "notes": "Commercial model, size estimated",
-      "json_support": {
-        "json_object": true,
-        "json_schema": false,
-        "strict_schema": false
-      }
-    },
-    "gpt-oss-20b": {
-      "id": "openai/gpt-oss-20b",
+    "gpt-4o-mini": {
+      "id": "openai/gpt-4o-mini-2024-07-18",
       "provider": "openai",
-      "parameters": "21B",
-      "architecture": "MoE (4-bit quantized MXFP4)",
-      "notes": "Open-weight model, Apache 2.0 license, runs on 16GB memory",
+      "parameters": "~8B",
+      "size": "~8B",
+      "architecture": "dense (possibly MoE)",
+      "release_date": "2024-07-18",
+      "notes": "Commercial model, size estimated",
+      "open_weights": false,
       "json_support": {
         "json_object": true,
         "json_schema": true,
-        "strict_schema": true
-      }
-    },
-    "gpt-oss-120b": {
-      "id": "openai/gpt-oss-120b",
-      "provider": "openai",
-      "parameters": "117B",
-      "architecture": "MoE (4-bit quantized MXFP4)",
-      "notes": "Open-weight model, Apache 2.0 license, competitive with o4-mini, runs on 80GB GPU, JSON support unreliable",
-      "json_support": {
-        "json_object": false,
-        "json_schema": false,
         "strict_schema": false
       }
     },
@@ -88,8 +64,11 @@
       "id": "meta-llama/llama-3.2-1b-instruct",
       "provider": "meta",
       "parameters": "1B",
+      "size": "1B",
       "architecture": "dense",
+      "release_date": "2024-09-25",
       "notes": "Open-weight model, efficient edge/mobile model, very affordable",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": false,
@@ -100,8 +79,11 @@
       "id": "meta-llama/llama-3.2-3b-instruct",
       "provider": "meta",
       "parameters": "3B",
+      "size": "3B",
       "architecture": "dense",
+      "release_date": "2024-09-25",
       "notes": "Open-weight model, very affordable (~$0.018/M), outperforms Gemma 2.6B and Phi 3.5-mini on NLP tasks",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": false,
@@ -112,8 +94,56 @@
       "id": "meta-llama/llama-3.3-70b-instruct",
       "provider": "meta",
       "parameters": "70B",
+      "size": "70B",
       "architecture": "dense",
+      "release_date": "2024-12-06",
       "notes": "Open-weight model",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "llama-4-maverick": {
+      "id": "meta-llama/llama-4-maverick",
+      "provider": "meta",
+      "parameters": "17B active, 128 experts",
+      "size": "17B×128E",
+      "architecture": "MoE",
+      "release_date": "2025-04-05",
+      "notes": "Open-weight model, Llama 4 experimental release with MoE architecture",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "gemma-3-12b": {
+      "id": "google/gemma-3-12b-it",
+      "provider": "google",
+      "parameters": "12B",
+      "size": "12B",
+      "architecture": "dense",
+      "release_date": "2025-03-12",
+      "notes": "Open-weight model, Google Gemma 3 instruction-tuned",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "gemma-3-27b": {
+      "id": "google/gemma-3-27b-it",
+      "provider": "google",
+      "parameters": "27B",
+      "size": "27B",
+      "architecture": "dense",
+      "release_date": "2025-03-12",
+      "notes": "Open-weight model, Google Gemma 3 instruction-tuned",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -124,20 +154,11 @@
       "id": "mistralai/mistral-nemo",
       "provider": "mistral",
       "parameters": "12B",
+      "size": "12B",
       "architecture": "dense",
+      "release_date": "2024-07-18",
       "notes": "Open-weight model, efficient small model",
-      "json_support": {
-        "json_object": true,
-        "json_schema": true,
-        "strict_schema": true
-      }
-    },
-    "qwen3-32b": {
-      "id": "qwen/qwen3-32b",
-      "provider": "qwen",
-      "parameters": "32B",
-      "architecture": "dense",
-      "notes": "Open-weight model, latest Qwen3 generation (April 2025)",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -148,8 +169,26 @@
       "id": "mistralai/mistral-medium-3",
       "provider": "mistral",
       "parameters": "~60-80B",
+      "size": "~60-80B",
       "architecture": "dense",
+      "release_date": "2025-05-07",
       "notes": "Open-weight model, size estimated",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": true,
+        "strict_schema": true
+      }
+    },
+    "qwen3-32b": {
+      "id": "qwen/qwen3-32b",
+      "provider": "qwen",
+      "parameters": "32B",
+      "size": "32B",
+      "architecture": "dense",
+      "release_date": "2025-04-29",
+      "notes": "Open-weight model, latest Qwen3 generation (April 2025)",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": true,
@@ -160,12 +199,45 @@
       "id": "deepseek/deepseek-chat-v3.1",
       "provider": "deepseek",
       "parameters": "671B total, 37B active",
+      "size": "37B×18E",
       "architecture": "MoE",
+      "release_date": "2025-08-21",
       "notes": "Open-weight model, hybrid reasoning model with reasoning disabled for faster/cheaper responses",
+      "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      }
+    },
+    "gpt-oss-20b": {
+      "id": "openai/gpt-oss-20b",
+      "provider": "openai",
+      "parameters": "21B total, 3.6B active",
+      "size": "3.6B×6E",
+      "architecture": "MoE (4-bit quantized MXFP4)",
+      "release_date": "2025-08-05",
+      "notes": "Open-weight model, Apache 2.0 license, runs on 16GB memory",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": false,
+        "strict_schema": false
+      }
+    },
+    "gpt-oss-120b": {
+      "id": "openai/gpt-oss-120b",
+      "provider": "openai",
+      "parameters": "117B total, 5.1B active",
+      "size": "5.1B×23E",
+      "architecture": "MoE (4-bit quantized MXFP4)",
+      "release_date": "2025-08-05",
+      "notes": "Open-weight model, Apache 2.0 license, competitive with o4-mini, runs on 80GB GPU, JSON support unreliable",
+      "open_weights": true,
+      "json_support": {
+        "json_object": true,
+        "json_schema": false,
+        "strict_schema": false
       }
     }
   },
@@ -176,6 +248,6 @@
     0.9
   ],
   "student_credit_limit": 15.0,
-  "description": "OpenRouter model configurations for DS776 NLP lessons. Removed free-tier models (rate limiting issues) and deepseek models. Using paid variants of gpt-oss-20b, llama-3.2-1b for better reliability. Focus on commercial models (OpenAI, Google, Anthropic) and affordable open-weight models (Meta Llama, Mistral, Qwen). Includes model metadata and JSON capability data from automated testing.",
+  "description": "OpenRouter model configurations for DS776 NLP lessons. Using commercial models (Claude, Gemini, GPT) and affordable open-weight models (Meta Llama, Google Gemma, Mistral, Qwen, Deepseek). Includes model metadata, JSON capability data, release dates, and open-weights status.",
   "last_updated": "2025-10-09"
 }

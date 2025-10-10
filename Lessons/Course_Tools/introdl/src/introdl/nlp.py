@@ -26,14 +26,19 @@ _CONFIG: Dict[str, Any] = {}  # From openrouter_models.json
 _CLIENT: Optional[OpenAI] = None
 
 
-def _init_client():
-    """Initialize OpenRouter client (lazy initialization)."""
+def _init_openrouter_client():
+    """
+    Initialize OpenRouter client with caching.
+
+    Returns:
+        OpenAI client configured for OpenRouter
+    """
     global _CLIENT
     if _CLIENT is None:
         api_key = os.environ.get('OPENROUTER_API_KEY')
         if not api_key:
             raise ValueError(
-                "OPENROUTER_API_KEY not found. Set it in your environment or api_keys.env file."
+                "OPENROUTER_API_KEY not found. Set it in ~/home_workspace/api_keys.env"
             )
         _CLIENT = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -158,7 +163,7 @@ def _fetch_openrouter_pricing() -> Dict[str, Tuple[float, float]]:
     Returns dict of model_id -> (input_$/token, output_$/token)
     """
     try:
-        client = _init_client()
+        client = _init_openrouter_client()
         models = client.models.list()
         prices = {}
 
@@ -232,6 +237,9 @@ def get_model_price(model_id: str) -> Tuple[float, float]:
     """
     Get pricing for a model (cached per session).
 
+    Automatically fetches pricing from OpenRouter API for any model,
+    not just those in our curated list.
+
     Args:
         model_id: Full OpenRouter model ID
 
@@ -249,15 +257,15 @@ def get_model_price(model_id: str) -> Tuple[float, float]:
     if base_id in _PRICING_CACHE:
         return _PRICING_CACHE[base_id]
 
-    # Fetch all pricing if cache is empty
+    # Fetch all pricing if cache is empty (gets ALL OpenRouter models)
     if not _PRICING_CACHE:
         _PRICING_CACHE = _fetch_openrouter_pricing()
 
-    # Try exact match
+    # Try exact match after fetch
     if model_id in _PRICING_CACHE:
         return _PRICING_CACHE[model_id]
 
-    # Try base match
+    # Try base match after fetch
     if base_id in _PRICING_CACHE:
         return _PRICING_CACHE[base_id]
 
@@ -267,14 +275,42 @@ def get_model_price(model_id: str) -> Tuple[float, float]:
         if base_id == cached_base or base_id.startswith(cached_base):
             return price
 
-    # Return zero if no pricing found
-    print(f"⚠️  No pricing found for {model_id}, assuming free")
+    # Still not found - try one more fetch in case it's a very new model
+    # This is a fallback for models added after the initial cache was populated
+    try:
+        fresh_pricing = _fetch_openrouter_pricing()
+        if fresh_pricing:
+            _PRICING_CACHE.update(fresh_pricing)
+
+            # Try exact match again
+            if model_id in _PRICING_CACHE:
+                return _PRICING_CACHE[model_id]
+
+            # Try base match again
+            if base_id in _PRICING_CACHE:
+                return _PRICING_CACHE[base_id]
+    except Exception:
+        pass
+
+    # Return zero if no pricing found (likely a free model or pricing unavailable)
     return (0.0, 0.0)
 
 
 def show_pricing_table():
-    """Display pricing table for available models."""
+    """
+    Display pricing table for available models.
+
+    NOTE: This function is now redundant since llm_list_models() displays
+    pricing information in a more comprehensive table. Kept for backward
+    compatibility only.
+
+    Use llm_list_models() instead for a better formatted table with
+    additional model metadata.
+    """
     model_map, _ = _load_model_config()
+
+    print("\n⚠️  NOTE: This pricing table is now redundant.")
+    print("   Use llm_list_models() for a better formatted table with more details.\n")
 
     print("OpenRouter Model Pricing (USD)")
     print("=" * 110)
@@ -553,9 +589,10 @@ def init_cost_tracking():
     Call this at the beginning of your notebook (after config_paths_keys()) to:
     - Initialize cost tracking file if it doesn't exist
     - Fetch current OpenRouter credit and update baseline
-    - Pre-load pricing data cache
+    - Pre-load pricing data cache for ALL OpenRouter models (not just curated list)
 
-    This ensures estimate_cost displays work correctly.
+    This ensures cost tracking and estimation works for ANY OpenRouter model,
+    including models not in our curated list.
 
     Example:
         >>> from introdl.utils import config_paths_keys
@@ -570,12 +607,12 @@ def init_cost_tracking():
     # Fetch and update OpenRouter credit baseline
     credit = update_openrouter_credit()
 
-    # Pre-load pricing cache (will fetch from OpenRouter API)
+    # Pre-load pricing cache (fetches ALL OpenRouter models, not just curated list)
     global _PRICING_CACHE
     if not _PRICING_CACHE:
         try:
             _PRICING_CACHE = _fetch_openrouter_pricing()
-            print(f"✅ Loaded pricing for {len(_PRICING_CACHE)} models")
+            print(f"✅ Loaded pricing for {len(_PRICING_CACHE)} OpenRouter models")
         except Exception as e:
             print(f"⚠️  Could not pre-load pricing: {e}")
 
@@ -620,59 +657,171 @@ def llm_generate(
     system_prompt: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: int = 500,
-    llm_provider: str = 'openrouter',
+    api_key: Optional[str] = None,
+    base_url: str = "https://openrouter.ai/api/v1",
+    cost_per_m_in: Optional[float] = None,
+    cost_per_m_out: Optional[float] = None,
     print_cost: bool = False,
     track_cost: bool = True,
     **kwargs
 ) -> Union[str, dict, List[str], List[dict]]:
     """
-    Generate text or JSON from LLM.
+    Generate text or JSON from LLM using any OpenAI-compatible API.
+
+    Defaults to OpenRouter (with automatic cost tracking). Works with OpenAI, Anthropic,
+    Google, Together.AI, Groq, or any OpenAI-compatible endpoint.
 
     Args:
-        model_name: Model name (short name or full OpenRouter ID)
+        model_name: Model name - can be:
+                   - Short name from our curated list (e.g., 'gemini-flash-lite')
+                   - Full model ID (e.g., 'google/gemini-2.5-flash-lite')
+                   - For other providers, use their native model names
         prompts: Single prompt or list of prompts
         mode: 'text' or 'json'
         user_schema: Optional JSON schema for structured output (mode='json' only)
         system_prompt: Optional system message
         temperature: Sampling temperature (0.0-1.0)
         max_tokens: Maximum tokens to generate
-        llm_provider: 'openrouter' (default) or 'huggingface' (local models, not priority)
+        api_key: API key to use. If None, uses OPENROUTER_API_KEY from environment.
+                 For other providers, load keys via config_paths_keys() from
+                 ~/home_workspace/api_keys.env and pass as os.environ['PROVIDER_API_KEY']
+        base_url: Base URL for the API endpoint. Defaults to OpenRouter.
+                  Common endpoints:
+                  - OpenRouter: https://openrouter.ai/api/v1 (default)
+                  - OpenAI: https://api.openai.com/v1
+                  - Anthropic: https://api.anthropic.com/v1
+                  - Google: https://generativelanguage.googleapis.com/v1beta/openai/
+                  - Together.AI: https://api.together.xyz/v1
+                  - Groq: https://api.groq.com/openai/v1
+        cost_per_m_in: Cost per million input tokens (for cost tracking with non-OpenRouter providers)
+        cost_per_m_out: Cost per million output tokens (for cost tracking with non-OpenRouter providers)
         print_cost: Print cost after generation
-        track_cost: Update persistent cost tracking
+        track_cost: Update persistent cost tracking (OpenRouter only)
         **kwargs: Additional parameters (for future extensions)
 
     Returns:
         - mode='text': str or List[str]
         - mode='json': dict or List[dict]
 
+    Note:
+        **Cost Tracking:**
+        - OpenRouter: Automatic cost tracking and pricing lookup
+        - Other providers: Provide cost_per_m_in and cost_per_m_out for manual tracking,
+          or monitor costs through provider dashboards:
+          - OpenAI: https://platform.openai.com/usage
+          - Anthropic: https://console.anthropic.com/settings/usage
+          - Google: https://console.cloud.google.com/billing
+          - Together.AI: https://api.together.xyz/settings/billing
+          - Groq: https://console.groq.com/settings/billing
+
     Examples:
-        >>> # Text generation
+        >>> # OpenRouter (default): Automatic cost tracking
         >>> response = llm_generate('gpt-4o-mini', 'What is deep learning?')
 
-        >>> # Batch text generation
-        >>> responses = llm_generate('gemini-flash-lite', ['Question 1', 'Question 2'])
+        >>> # OpenRouter: Use ANY model by full ID
+        >>> response = llm_generate('anthropic/claude-opus-4', 'Explain transformers')
 
-        >>> # JSON generation with schema
+        >>> # OpenAI: Use GPT models with manual cost tracking
+        >>> response = llm_generate(
+        ...     'gpt-4o',
+        ...     'Explain deep learning',
+        ...     api_key=os.environ['OPENAI_API_KEY'],
+        ...     base_url='https://api.openai.com/v1',
+        ...     cost_per_m_in=2.50,  # $2.50 per M input tokens
+        ...     cost_per_m_out=10.00,  # $10.00 per M output tokens
+        ...     print_cost=True
+        ... )
+
+        >>> # Anthropic: Use Claude models
+        >>> response = llm_generate(
+        ...     'claude-3-5-sonnet-20241022',
+        ...     'What is deep learning?',
+        ...     api_key=os.environ['ANTHROPIC_API_KEY'],
+        ...     base_url='https://api.anthropic.com/v1'
+        ... )
+
+        >>> # Google: Use Gemini models
+        >>> response = llm_generate(
+        ...     'gemini-2.0-flash-exp',
+        ...     'Explain transformers',
+        ...     api_key=os.environ['GOOGLE_API_KEY'],
+        ...     base_url='https://generativelanguage.googleapis.com/v1beta/openai/'
+        ... )
+
+        >>> # Together.AI: Use their models
+        >>> response = llm_generate(
+        ...     'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+        ...     'What is ML?',
+        ...     api_key=os.environ['TOGETHER_API_KEY'],
+        ...     base_url='https://api.together.xyz/v1'
+        ... )
+
+        >>> # Groq: Ultra-fast inference
+        >>> response = llm_generate(
+        ...     'llama-3.3-70b-versatile',
+        ...     'Define ML',
+        ...     api_key=os.environ['GROQ_API_KEY'],
+        ...     base_url='https://api.groq.com/openai/v1'
+        ... )
+
+        >>> # JSON generation with schema (works with all providers)
         >>> schema = {'type': 'object', 'properties': {'answer': {'type': 'string'}}}
-        >>> response = llm_generate('gpt-4o', 'Answer in JSON', mode='json', user_schema=schema)
+        >>> response = llm_generate('deepseek-v3.1', 'Answer in JSON',
+        ...                         mode='json', user_schema=schema)
     """
-    if llm_provider != 'openrouter':
-        raise NotImplementedError(
-            f"Provider '{llm_provider}' not yet supported. Use 'openrouter' or access HuggingFace models directly."
-        )
+    # Check if this is OpenRouter (for automatic cost tracking)
+    is_openrouter = 'openrouter' in base_url.lower()
 
-    # Resolve model name
-    model_id = resolve_model_name(model_name)
+    # Resolve model name for OpenRouter (short names -> full IDs)
+    if is_openrouter:
+        model_id = resolve_model_name(model_name)
+    else:
+        model_id = model_name  # Use model name as-is for other providers
 
     # Initialize client
-    client = _init_client()
+    if api_key is None:
+        # No API key provided - default to OpenRouter from environment
+        if is_openrouter:
+            client = _init_openrouter_client()
+        else:
+            raise ValueError(
+                f"api_key required for non-OpenRouter endpoint: {base_url}\n"
+                f"Load keys via config_paths_keys() then pass: api_key=os.environ['YOUR_PROVIDER_API_KEY']"
+            )
+    else:
+        # API key provided - use it with the base_url
+        if is_openrouter:
+            # For OpenRouter, include special headers
+            client = OpenAI(
+                base_url=base_url,
+                api_key=api_key,
+                default_headers={
+                    "HTTP-Referer": os.environ.get("OPENROUTER_REFERRER", "http://localhost"),
+                    "X-Title": os.environ.get("OPENROUTER_APP_TITLE", "DS776 Deep Learning"),
+                },
+            )
+        else:
+            # For other providers, simple client
+            client = OpenAI(api_key=api_key, base_url=base_url)
 
     # Handle batch vs single prompt
     is_batch = isinstance(prompts, list)
     prompt_list = prompts if is_batch else [prompts]
 
     # Get pricing
-    inp_price, out_price = get_model_price(model_id)
+    if is_openrouter:
+        # OpenRouter: Automatic pricing lookup
+        inp_price, out_price = get_model_price(model_id)
+    elif cost_per_m_in is not None and cost_per_m_out is not None:
+        # Manual pricing provided - convert from $/M to $/token
+        inp_price = cost_per_m_in / 1_000_000
+        out_price = cost_per_m_out / 1_000_000
+    else:
+        # No pricing available
+        inp_price, out_price = 0.0, 0.0
+        # Warn if trying to track/print costs without pricing
+        if print_cost or track_cost:
+            print("⚠️  Cost tracking requested but no pricing provided. Add cost_per_m_in and cost_per_m_out parameters to track costs for non-OpenRouter providers.")
 
     # Generate responses
     responses = []
@@ -768,12 +917,12 @@ def llm_generate(
             else:
                 responses.append(error_msg)
 
-    # Update cost tracking
-    if track_cost and total_cost > 0:
+    # Update cost tracking (OpenRouter only)
+    if is_openrouter and track_cost and total_cost > 0:
         _update_spend(model_id, total_prompt_tokens, total_completion_tokens, total_cost)
 
     # Print cost if requested
-    if print_cost:
+    if print_cost and total_cost > 0:
         print(f"💰 Cost: ${total_cost:.6f} | Tokens: {total_prompt_tokens} in / {total_completion_tokens} out | Model: {model_id}")
 
     # Return single result or list
@@ -789,7 +938,7 @@ def llm_list_models(verbose: bool = True, json_schema: bool = None, strict_schem
     List available models from openrouter_models.json.
 
     Args:
-        verbose: If True, print model details
+        verbose: If True, display formatted table
         json_schema: If True, only show models that support json_schema
         strict_schema: If True, only show models that support strict_schema
 
@@ -811,39 +960,85 @@ def llm_list_models(verbose: bool = True, json_schema: bool = None, strict_schem
         filtered_models[short_name] = metadata
 
     if verbose:
-        filter_note = ""
-        if json_schema:
-            filter_note = " (json_schema support)"
-        elif strict_schema:
-            filter_note = " (strict_schema support)"
-
-        print(f"Available OpenRouter Models{filter_note}:")
-        print("-" * 90)
-        for i, (short, metadata) in enumerate(sorted(filtered_models.items())):
+        # Build data for table
+        rows = []
+        for short, metadata in sorted(filtered_models.items()):
             model_id = metadata['id']
             json_support = metadata.get('json_support', {})
 
             inp_tok, out_tok = get_model_price(model_id)
-            print(f"{i+1}. {short:<20} -> {model_id:<40}", end="")
+            inp_1m = inp_tok * 1_000_000
+            out_1m = out_tok * 1_000_000
 
-            # Show JSON capabilities
-            caps = []
-            if json_support.get('json_object'): caps.append('json')
-            if json_support.get('json_schema'): caps.append('schema')
-            if json_support.get('strict_schema'): caps.append('strict')
-            if caps:
-                print(f" [{', '.join(caps)}]")
-            else:
-                print()
+            # Schema support indicator
+            schema_support = "✅" if json_support.get('json_schema', False) else "❌"
 
-            if inp_tok > 0 or out_tok > 0:
-                print(f"   ${inp_tok*1000:.4f}/1K in, ${out_tok*1000:.4f}/1K out")
+            # Open weights indicator
+            open_weights = "✅" if metadata.get('open_weights', False) else "❌"
 
-        print("-" * 90)
-        print(f"Default model: {config.get('default_model', 'gemini-flash-lite')}")
-        if not filter_note:
-            print("\nJSON Capabilities: [json]=basic JSON, [schema]=user schemas, [strict]=strict validation")
-        print("\nYou can also use any OpenRouter model by its full ID (e.g., 'openai/gpt-4o')")
+            # Release date (format as YYYY-MM)
+            release_date = metadata.get('release_date', 'Unknown')
+            if release_date != 'Unknown':
+                # Format as YYYY-MM for compact display
+                release_date = '-'.join(release_date.split('-')[:2])
+
+            # Size (display size field which handles MoE specially)
+            size = metadata.get('size', metadata.get('parameters', '?'))
+
+            rows.append({
+                'Short Name': short,
+                'Size': size,
+                'Released': release_date,
+                'In/M': f'${inp_1m:.2f}',
+                'Out/M': f'${out_1m:.2f}',
+                'JSON Schema': schema_support,
+                'Open Weights': open_weights
+            })
+
+        # Try to display as pandas DataFrame for best formatting
+        try:
+            import pandas as pd
+            from IPython.display import display
+
+            df = pd.DataFrame(rows)
+
+            filter_note = ""
+            if json_schema:
+                filter_note = " (json_schema support only)"
+            elif strict_schema:
+                filter_note = " (strict_schema support only)"
+
+            print(f"\nAvailable OpenRouter Models{filter_note}:\n")
+            display(df)
+            print(f"\nDefault model: {config.get('default_model', 'gemini-flash-lite')}")
+            print(f"Size format: Dense models show total params (e.g., '70B'), MoE models show active×experts (e.g., '17B×128E')")
+            print(f"JSON Schema = User-defined JSON schemas supported")
+            print(f"\nYou can also use any OpenRouter model by its full ID (e.g., 'openai/gpt-4o')")
+
+        except ImportError:
+            # Fallback to markdown table if pandas not available
+            from IPython.display import display, Markdown
+
+            filter_note = ""
+            if json_schema:
+                filter_note = " (json_schema support only)"
+            elif strict_schema:
+                filter_note = " (strict_schema support only)"
+
+            # Build markdown table
+            md = f"\n**Available OpenRouter Models{filter_note}:**\n\n"
+            md += "| Short Name | Size | Released | In/M | Out/M | JSON Schema | Open Weights |\n"
+            md += "|------------|------|----------|------|-------|-------------|-------------|\n"
+
+            for row in rows:
+                md += f"| {row['Short Name']} | {row['Size']} | {row['Released']} | {row['In/M']} | {row['Out/M']} | {row['JSON Schema']} | {row['Open Weights']} |\n"
+
+            md += f"\n**Default model:** {config.get('default_model', 'gemini-flash-lite')}\n\n"
+            md += "**Size format:** Dense models show total params (e.g., '70B'), MoE models show active×experts (e.g., '17B×128E')\n\n"
+            md += "**JSON Schema** = User-defined JSON schemas supported\n\n"
+            md += "You can also use any OpenRouter model by its full ID (e.g., 'openai/gpt-4o')\n"
+
+            display(Markdown(md))
 
     return list(enumerate(sorted(filtered_models.keys()), 1))
 
