@@ -347,9 +347,8 @@ def main():
 
     # Detect if we're on Hyperstack
     on_hyperstack = is_hyperstack()
-    if on_hyperstack:
-        print_warning("🖥️  Hyperstack environment detected - using aggressive cleanup")
-        verbose = True  # Force verbose mode on Hyperstack for better debugging
+    if on_hyperstack and not verbose:
+        print_info("🖥️  Hyperstack server detected. Following Hyperstack protocol.")
 
     # Quick exit if user wants to skip the check
     if os.environ.get('SKIP_INTRODL_CHECK', '').lower() in ('1', 'true', 'yes'):
@@ -505,8 +504,11 @@ def main():
     # Install/update if needed
     if needs_update:
         # Clean source build artifacts again in verbose mode (already done silently above)
-        if verbose or on_hyperstack:
+        if verbose:
             clean_source_build_artifacts(introdl_dir, verbose_mode=True)
+        elif on_hyperstack:
+            # Hyperstack needs aggressive cleanup but quiet
+            clean_source_build_artifacts(introdl_dir, verbose_mode=False)
 
         if not verbose:
             # Simple message for non-verbose mode
@@ -528,17 +530,19 @@ def main():
 
         # Clear Python's module cache on Hyperstack
         if on_hyperstack:
-            print_info("Clearing Python module cache (Hyperstack mode)...", force=True)
+            if verbose:
+                print_info("Clearing Python module cache (Hyperstack mode)...")
             if 'introdl' in sys.modules:
                 del sys.modules['introdl']
-                print_info("  Removed introdl from sys.modules", force=True)
+                if verbose:
+                    print_info("  Removed introdl from sys.modules")
 
             # Remove all introdl submodules from cache
             modules_to_remove = [mod for mod in list(sys.modules.keys()) if mod.startswith('introdl.')]
             for mod in modules_to_remove:
                 del sys.modules[mod]
                 if verbose:
-                    print_info(f"  Removed {mod} from sys.modules", force=True)
+                    print_info(f"  Removed {mod} from sys.modules")
 
         # Now use pip uninstall to clean up any metadata
         if verbose:
@@ -555,12 +559,14 @@ def main():
 
         # Clear pip cache - more aggressive on Hyperstack
         if on_hyperstack:
-            print_info("Purging entire pip cache (Hyperstack mode)...", force=True)
+            if verbose:
+                print_info("Purging entire pip cache (Hyperstack mode)...")
             try:
                 # Try to purge entire cache on Hyperstack
                 subprocess.run([sys.executable, "-m", "pip", "cache", "purge"],
                               capture_output=True, text=True, timeout=10)
-                print_status("Pip cache purged")
+                if verbose:
+                    print_status("Pip cache purged")
             except:
                 # Fallback to removing just introdl
                 try:
