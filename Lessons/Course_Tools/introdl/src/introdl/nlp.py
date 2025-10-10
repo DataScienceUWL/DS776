@@ -24,6 +24,7 @@ _PRICING_CACHE: Dict[str, Tuple[float, float]] = {}  # model_id -> (input_$/toke
 _MODEL_MAP: Dict[str, str] = {}  # short_name -> full_model_id
 _CONFIG: Dict[str, Any] = {}  # From openrouter_models.json
 _CLIENT: Optional[OpenAI] = None
+_SESSION_START_TIME: Optional[str] = None  # Track when session started for session spending
 
 
 def _init_openrouter_client():
@@ -590,6 +591,7 @@ def init_cost_tracking():
     - Initialize cost tracking file if it doesn't exist
     - Fetch current OpenRouter credit and update baseline
     - Pre-load pricing data cache for ALL OpenRouter models (not just curated list)
+    - Start session spending tracker
 
     This ensures cost tracking and estimation works for ANY OpenRouter model,
     including models not in our curated list.
@@ -601,6 +603,10 @@ def init_cost_tracking():
         >>> paths = config_paths_keys()  # Loads API keys
         >>> init_cost_tracking()         # Initialize cost tracking
     """
+    # Set session start time for session spending tracking
+    global _SESSION_START_TIME
+    _SESSION_START_TIME = datetime.now().isoformat()
+
     # Ensure cost tracker file exists
     data = _load_cost_tracker()
 
@@ -621,6 +627,101 @@ def init_cost_tracking():
         print(f"✅ Cost tracking initialized (${credit:.2f} credit remaining)")
     else:
         print("✅ Cost tracking initialized (could not fetch live credit)")
+
+
+def show_session_spending():
+    """
+    Display spending for the current notebook session.
+
+    Shows all API calls made since init_cost_tracking() was called in this session,
+    including per-model breakdown and total session cost.
+
+    Note: Call init_cost_tracking() at the start of your notebook to start tracking
+    session spending. Without it, this function will show all recent history instead.
+
+    Example:
+        >>> # At start of notebook
+        >>> init_cost_tracking()
+        >>>
+        >>> # ... make API calls ...
+        >>>
+        >>> # At end of notebook or any time during session
+        >>> show_session_spending()
+    """
+    global _SESSION_START_TIME
+
+    data = _load_cost_tracker()
+    history = data.get("history", [])
+
+    if not history:
+        print("📊 No API calls recorded in history")
+        return
+
+    # Filter to session calls if we have a session start time
+    if _SESSION_START_TIME:
+        session_calls = [
+            call for call in history
+            if call.get("timestamp", "") >= _SESSION_START_TIME
+        ]
+        session_label = "Current Session"
+    else:
+        # No session start time - show recent history instead
+        session_calls = history[-20:] if len(history) > 20 else history
+        session_label = "Recent History (no session start time set)"
+        print("⚠️  Session start time not set. Call init_cost_tracking() at notebook start for accurate session tracking.\n")
+
+    if not session_calls:
+        print(f"📊 No API calls in {session_label.lower()}")
+        return
+
+    # Calculate session totals
+    session_cost = sum(call.get("cost", 0) for call in session_calls)
+    session_prompt_tokens = sum(call.get("prompt_tokens", 0) for call in session_calls)
+    session_completion_tokens = sum(call.get("completion_tokens", 0) for call in session_calls)
+    session_call_count = len(session_calls)
+
+    # Group by model
+    by_model = {}
+    for call in session_calls:
+        model = call.get("model", "unknown")
+        if model not in by_model:
+            by_model[model] = {"cost": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
+        by_model[model]["cost"] += call.get("cost", 0)
+        by_model[model]["calls"] += 1
+        by_model[model]["prompt_tokens"] += call.get("prompt_tokens", 0)
+        by_model[model]["completion_tokens"] += call.get("completion_tokens", 0)
+
+    # Display summary
+    print("\n" + "=" * 70)
+    print(f"💰 {session_label} Spending Summary")
+    print("=" * 70)
+    print(f"Total Cost:          ${session_cost:.6f}")
+    print(f"Total API Calls:     {session_call_count}")
+    print(f"Total Tokens:        {session_prompt_tokens:,} in / {session_completion_tokens:,} out")
+
+    if by_model:
+        print("\n" + "-" * 70)
+        print("By Model:")
+        for model, stats in sorted(by_model.items(), key=lambda x: -x[1]["cost"]):
+            print(f"  {model}")
+            print(f"    Cost: ${stats['cost']:.6f} | Calls: {stats['calls']} | Tokens: {stats['prompt_tokens']:,} in / {stats['completion_tokens']:,} out")
+
+    # Fetch live credit from OpenRouter API and show summary
+    credit = get_openrouter_credit()
+
+    print("\n" + "-" * 70)
+    print(f"Total Spent this session: ${session_cost:.6f}")
+    if credit is not None:
+        print(f"Approximate Credit remaining: ${credit:.2f}")
+        print("(Note: This balance may not reflect the most recent spending)")
+    else:
+        # Fallback to estimate if API call fails
+        baseline = data.get("baseline_credit", 15.0)
+        total_spend = data.get("total_spend", 0.0)
+        remaining = baseline - total_spend
+        print(f"Approximate Credit remaining: ${remaining:.2f} (estimated)")
+        print("(Note: Could not fetch live credit from OpenRouter API)")
+    print("=" * 70 + "\n")
 
 
 # ============================================================================
@@ -662,6 +763,7 @@ def llm_generate(
     cost_per_m_in: Optional[float] = None,
     cost_per_m_out: Optional[float] = None,
     print_cost: bool = False,
+    estimate_cost: bool = None,  # Alias for print_cost
     track_cost: bool = True,
     **kwargs
 ) -> Union[str, dict, List[str], List[dict]]:
@@ -769,6 +871,10 @@ def llm_generate(
         >>> response = llm_generate('deepseek-v3.1', 'Answer in JSON',
         ...                         mode='json', user_schema=schema)
     """
+    # Handle estimate_cost as alias for print_cost
+    if estimate_cost is not None:
+        print_cost = estimate_cost
+
     # Check if this is OpenRouter (for automatic cost tracking)
     is_openrouter = 'openrouter' in base_url.lower()
 
@@ -943,7 +1049,20 @@ def llm_list_models(verbose: bool = True, json_schema: bool = None, strict_schem
         strict_schema: If True, only show models that support strict_schema
 
     Returns:
-        List of (index, short_name) tuples
+        Dictionary keyed by short name with model information:
+        {
+            'gemini-flash-lite': {
+                'model_id': 'google/gemini-2.5-flash-lite',
+                'size': '?',
+                'release_date': '2025-01',
+                'cost_in_per_m': 0.10,
+                'cost_out_per_m': 0.40,
+                'json_schema': True,
+                'open_weights': False,
+                'provider': 'google'
+            },
+            ...
+        }
     """
     model_map, config = _load_model_config()
 
@@ -959,41 +1078,56 @@ def llm_list_models(verbose: bool = True, json_schema: bool = None, strict_schem
 
         filtered_models[short_name] = metadata
 
-    if verbose:
-        # Build data for table
-        rows = []
-        for short, metadata in sorted(filtered_models.items()):
-            model_id = metadata['id']
-            json_support = metadata.get('json_support', {})
+    # Build result dictionary with model info
+    result = {}
+    rows = []  # For verbose display
 
-            inp_tok, out_tok = get_model_price(model_id)
-            inp_1m = inp_tok * 1_000_000
-            out_1m = out_tok * 1_000_000
+    for short, metadata in sorted(filtered_models.items()):
+        model_id = metadata['id']
+        json_support = metadata.get('json_support', {})
 
-            # Schema support indicator
+        inp_tok, out_tok = get_model_price(model_id)
+        inp_1m = inp_tok * 1_000_000
+        out_1m = out_tok * 1_000_000
+
+        # Release date (format as YYYY-MM for display, keep full for dict)
+        release_date = metadata.get('release_date', 'Unknown')
+        release_date_display = release_date
+        if release_date != 'Unknown':
+            # Format as YYYY-MM for compact display
+            release_date_display = '-'.join(release_date.split('-')[:2])
+
+        # Size (display size field which handles MoE specially)
+        size = metadata.get('size', metadata.get('parameters', '?'))
+
+        # Build result dictionary entry
+        result[short] = {
+            'model_id': model_id,
+            'size': size,
+            'release_date': release_date,
+            'cost_in_per_m': inp_1m,
+            'cost_out_per_m': out_1m,
+            'json_schema': json_support.get('json_schema', False),
+            'open_weights': metadata.get('open_weights', False),
+            'provider': metadata.get('provider', model_id.split('/')[0] if '/' in model_id else 'unknown')
+        }
+
+        # Build row for display table
+        if verbose:
             schema_support = "✅" if json_support.get('json_schema', False) else "❌"
-
-            # Open weights indicator
             open_weights = "✅" if metadata.get('open_weights', False) else "❌"
-
-            # Release date (format as YYYY-MM)
-            release_date = metadata.get('release_date', 'Unknown')
-            if release_date != 'Unknown':
-                # Format as YYYY-MM for compact display
-                release_date = '-'.join(release_date.split('-')[:2])
-
-            # Size (display size field which handles MoE specially)
-            size = metadata.get('size', metadata.get('parameters', '?'))
 
             rows.append({
                 'Short Name': short,
                 'Size': size,
-                'Released': release_date,
+                'Released': release_date_display,
                 'In/M': f'${inp_1m:.2f}',
                 'Out/M': f'${out_1m:.2f}',
                 'JSON Schema': schema_support,
                 'Open Weights': open_weights
             })
+
+    if verbose:
 
         # Try to display as pandas DataFrame for best formatting
         try:
@@ -1040,7 +1174,7 @@ def llm_list_models(verbose: bool = True, json_schema: bool = None, strict_schem
 
             display(Markdown(md))
 
-    return list(enumerate(sorted(filtered_models.keys()), 1))
+    return result
 
 
 def display_markdown(text: str):

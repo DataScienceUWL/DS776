@@ -597,15 +597,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
             # Silently fail if HF login doesn't work
             pass
 
-    # -- Check OpenRouter credit if API key available --
+    # -- Initialize cost tracking if OpenRouter API key available --
     if 'OPENROUTER_API_KEY' in found_keys:
         try:
-            from .nlp import update_openrouter_credit
-            credit = update_openrouter_credit()
-            if credit is not None:
-                print(f"💰 OpenRouter credit: ${credit:.2f}")
+            from .nlp import init_cost_tracking
+            init_cost_tracking()
         except Exception:
-            # Silently fail if credit check doesn't work
+            # Silently fail if cost tracking initialization doesn't work
             pass
 
     # Print version (condensed)

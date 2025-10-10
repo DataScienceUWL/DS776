@@ -57,8 +57,32 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.16"
+__version__ = "1.6.22"
 # Version history:
+# 1.6.22 - Enhanced export_this_to_html() with optional notebook_path parameter
+#          - Can now specify exact notebook to export: export_this_to_html('path/to/notebook.ipynb')
+#          - Skips auto-detection when path is provided
+#          - Added helpful message after export suggesting path parameter if wrong file was exported
+# 1.6.21 - IMPORTANT: config_paths_keys() now automatically calls init_cost_tracking()
+#          - Cost tracking is now automatically initialized when OPENROUTER_API_KEY is found
+#          - Students no longer need to manually call init_cost_tracking() in notebooks
+#          - Session spending tracking works automatically in all notebooks with OpenRouter API key
+# 1.6.20 - Simplified show_session_spending() output
+#          - Now shows "Total Spent this session" instead of "Total Cost"
+#          - Fetches live credit from OpenRouter API
+#          - Shows "Approximate Credit remaining" with disclaimer about potential delay
+#          - Removed "Overall Credit Status" section with all-time spending
+# 1.6.19 - BREAKING CHANGE: llm_list_models() now returns a dictionary instead of list of tuples
+#          - Dictionary keyed by model short name with full metadata (model_id, size, costs, json_schema, etc.)
+#          - Enables easy lookups: models['gemini-flash-lite']['cost_in_per_m']
+#          - Added examples in L07_1_Getting_Started.ipynb demonstrating dictionary usage
+#          - Verbose table display still works as before
+# 1.6.18 - Added estimate_cost parameter alias for print_cost in llm_generate()
+#          - Added show_session_spending() function to display spending since init_cost_tracking() was called
+#          - Session spending tracking now works with _SESSION_START_TIME global variable
+# 1.6.17 - Added export_this_to_html() function for automatic notebook detection and HTML export
+#          - Flattened all imports in Lesson 7 notebooks to use `from introdl import ...` pattern
+#          - Updated CLAUDE.md with import conventions for course notebooks
 # 1.6.16 - MAJOR REFACTOR: Simplified multi-provider LLM support in llm_generate()
 #          - Removed llm_provider parameter - now uses api_key and base_url instead
 #          - Added cost_per_m_in and cost_per_m_out for manual cost tracking (non-OpenRouter providers)
@@ -192,6 +216,7 @@ try:
         init_cost_tracking,
         display_markdown,
         show_cost_summary,
+        show_session_spending,
         show_pricing_table,
         reset_cost_tracker,
         resolve_model_name,
@@ -227,6 +252,7 @@ try:
         cleanup_old_cache,
         delete_current_lesson_models,
         export_homework_html_interactive,
+        export_this_to_html,
         zip_homework_models
     )
 
@@ -271,8 +297,8 @@ __all__ = [
 
     # NLP
     "llm_generate", "llm_list_models", "llm_get_credits", "llm_configure", "init_cost_tracking",
-    "display_markdown", "show_cost_summary", "show_pricing_table", "reset_cost_tracker",
-    "resolve_model_name", "get_model_metadata", "get_model_price",
+    "display_markdown", "show_cost_summary", "show_session_spending", "show_pricing_table",
+    "reset_cost_tracker", "resolve_model_name", "get_model_metadata", "get_model_price",
     "get_openrouter_credit", "update_openrouter_credit",
     "clear_pipeline", "print_pipeline_info",
 
@@ -286,7 +312,7 @@ __all__ = [
 
     # Storage (commonly used)
     "display_storage_report", "cleanup_old_cache", "delete_current_lesson_models",
-    "export_homework_html_interactive", "zip_homework_models",
+    "export_homework_html_interactive", "export_this_to_html", "zip_homework_models",
 
     # Notebook state management
     "save_state", "load_state", "enable_cell_autosave", "list_states", "delete_states",

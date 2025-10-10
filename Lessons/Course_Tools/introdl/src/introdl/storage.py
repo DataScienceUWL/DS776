@@ -804,14 +804,190 @@ def export_homework_html_interactive(notebook_name=None):
         return None
 
 
+def export_this_to_html(notebook_path=None):
+    """
+    Export the current notebook to HTML using automatic detection or specified path.
+
+    This function attempts to automatically detect which notebook it's being run from
+    and exports it to HTML format. Works when called from within a Jupyter notebook cell.
+
+    If the automatic detection selects the wrong notebook, you can specify the path explicitly.
+
+    Args:
+        notebook_path (str or Path, optional): Path to specific notebook to export.
+                                               If provided, skips automatic detection.
+                                               Can be relative or absolute path.
+
+    Detection methods (in order of priority):
+    1. Use provided notebook_path if specified
+    2. JavaScript introspection (Jupyter Lab/Notebook)
+    3. Most recently modified notebook in current directory
+    4. User confirmation before export
+
+    Returns:
+        Path to the created HTML file, or None if failed
+
+    Example:
+        from introdl import export_this_to_html
+
+        # Auto-detect and export current notebook
+        export_this_to_html()
+
+        # Export specific notebook by path
+        export_this_to_html('Homework_07_Assignment.ipynb')
+        export_this_to_html('path/to/notebook.ipynb')
+    """
+    try:
+        from IPython import get_ipython
+        from IPython.display import Javascript, display
+        from pathlib import Path
+        import time
+
+        # Check if we're in a notebook environment
+        ipython = get_ipython()
+        if ipython is None:
+            print("❌ Not running in IPython/Jupyter environment")
+            print("   This function must be called from a Jupyter notebook")
+            return None
+
+        cwd = Path.cwd()
+
+        # If notebook_path is provided, use it directly
+        if notebook_path is not None:
+            notebook_path_obj = Path(notebook_path)
+
+            # Handle relative paths
+            if not notebook_path_obj.is_absolute():
+                notebook_path_obj = cwd / notebook_path_obj
+
+            # Check if the specified notebook exists
+            if not notebook_path_obj.exists():
+                print(f"❌ Specified notebook not found: {notebook_path}")
+                print(f"   Full path checked: {notebook_path_obj}")
+                return None
+
+            if not notebook_path_obj.suffix == '.ipynb':
+                print(f"❌ File is not a notebook: {notebook_path}")
+                print("   Must have .ipynb extension")
+                return None
+
+            notebook_name = notebook_path_obj.name
+            print(f"📝 Using specified notebook: {notebook_name}")
+
+            # Skip confirmation since user explicitly specified the file
+            return export_homework_html_interactive(notebook_name)
+
+        # Method 1: Try JavaScript to get notebook name
+        # This creates a global variable that we can access
+        js_get_name = """
+        try {
+            // Try Jupyter Lab API
+            if (window.jupyterapp && window.jupyterapp.shell && window.jupyterapp.shell.currentWidget) {
+                var notebook_name = window.jupyterapp.shell.currentWidget.context.path;
+                IPython.notebook.kernel.execute('__DETECTED_NOTEBOOK_NAME__ = "' + notebook_name + '"');
+            }
+            // Try Classic Notebook API
+            else if (IPython && IPython.notebook && IPython.notebook.notebook_name) {
+                var notebook_name = IPython.notebook.notebook_name;
+                IPython.notebook.kernel.execute('__DETECTED_NOTEBOOK_NAME__ = "' + notebook_name + '"');
+            }
+            // Try document title as fallback
+            else if (document.title) {
+                var title = document.title.split(' - ')[0];
+                if (title.endsWith('.ipynb')) {
+                    IPython.notebook.kernel.execute('__DETECTED_NOTEBOOK_NAME__ = "' + title + '"');
+                }
+            }
+        } catch(e) {
+            console.log("Could not detect notebook name via JavaScript");
+        }
+        """
+
+        display(Javascript(js_get_name))
+        time.sleep(0.3)  # Give JavaScript time to execute
+
+        # Check if JavaScript detection worked
+        notebook_name = ipython.user_ns.get('__DETECTED_NOTEBOOK_NAME__')
+
+        # Clean up the variable
+        if '__DETECTED_NOTEBOOK_NAME__' in ipython.user_ns:
+            del ipython.user_ns['__DETECTED_NOTEBOOK_NAME__']
+
+        # Method 2: Fall back to most recently modified notebook
+        notebooks = sorted(
+            [f for f in cwd.glob("*.ipynb")
+             if 'utilities' not in f.name.lower()
+             and 'utils' not in f.name.lower()
+             and 'clean' not in f.name.lower()
+             and '.ipynb_checkpoints' not in str(f)],
+            key=lambda f: f.stat().st_mtime,
+            reverse=True
+        )
+
+        if not notebooks:
+            print("❌ No suitable notebooks found in current directory")
+            return None
+
+        # If JavaScript didn't work, use most recently modified
+        if notebook_name is None:
+            notebook_name = notebooks[0].name
+            print(f"🔍 Auto-detected notebook: {notebook_name}")
+            print("   (Using most recently modified notebook in current directory)")
+        else:
+            # JavaScript gave us a path, extract just the filename
+            notebook_name = Path(notebook_name).name
+            print(f"🔍 Detected notebook: {notebook_name}")
+
+        # Verify the detected notebook exists
+        notebook_path = cwd / notebook_name
+        if not notebook_path.exists():
+            print(f"⚠️ Detected notebook not found: {notebook_name}")
+            print("   Using most recently modified instead...")
+            notebook_name = notebooks[0].name
+            print(f"   → {notebook_name}")
+
+        # Show other notebooks if multiple exist
+        if len(notebooks) > 1:
+            print(f"\n📚 Other notebooks in this directory:")
+            for nb in notebooks:
+                if nb.name != notebook_name:
+                    print(f"   • {nb.name}")
+
+        # Method 3: Ask for confirmation
+        print(f"\n📤 Ready to export: {notebook_name}")
+        response = input("Proceed with export to HTML? (y/n): ")
+
+        if response.lower() != 'y':
+            print("❌ Export cancelled")
+            return None
+
+        # Use the existing export function
+        result = export_homework_html_interactive(notebook_name)
+
+        # Add helpful message if successful
+        if result is not None:
+            print(f"\n💡 If the wrong file was exported, call this function with a path:")
+            print(f"   export_this_to_html('path/to/notebook.ipynb')")
+
+        return result
+
+    except KeyboardInterrupt:
+        print("\n❌ Export cancelled by user")
+        return None
+    except Exception as e:
+        print(f"❌ Error during auto-detection: {e}")
+        print("\n💡 Falling back to interactive selection...")
+        return export_homework_html_interactive()
+
+
 def zip_homework_models(hw_num=None, delete_after=False):
     """
     Zip the homework models folder for download.
-    
+
     Args:
         hw_num: Homework number (e.g., '01', '02'). If None, auto-detect.
         delete_after: If True, delete the original folder after zipping
-    
+
     Returns:
         Path to zip file if successful, None otherwise
     """
