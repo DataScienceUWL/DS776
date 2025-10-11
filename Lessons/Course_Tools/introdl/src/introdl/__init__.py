@@ -61,8 +61,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.24"
+__version__ = "1.6.25"
 # Version history:
+# 1.6.25 - Export Trainer (TrainerWithPretend) from nlp.py for HuggingFace fine-tuning with pretend_train
+#          - Enables smart caching: `from introdl import Trainer` for drop-in replacement of HF Trainer
 # 1.6.24 - Added TRANSFORMERS_NO_TF and USE_TF environment variables to fix Keras 3 compatibility in CoCalc
 #          - Prevents transformers from trying to use TensorFlow when Keras 3 is installed
 # 1.6.23 - Added generic homework storage cleanup utilities
@@ -236,7 +238,8 @@ try:
         get_openrouter_credit,
         update_openrouter_credit,
         clear_pipeline,
-        print_pipeline_info
+        print_pipeline_info,
+        Trainer
     )
 
     # Text generation visualization functions
@@ -313,7 +316,7 @@ __all__ = [
     "display_markdown", "show_cost_summary", "show_session_spending", "show_pricing_table",
     "reset_cost_tracker", "resolve_model_name", "get_model_metadata", "get_model_price",
     "get_openrouter_credit", "update_openrouter_credit",
-    "clear_pipeline", "print_pipeline_info",
+    "clear_pipeline", "print_pipeline_info", "Trainer",
 
     # Generation
     "model_report", "generate_top_k_table", "generate_greedy_decoding_table",
