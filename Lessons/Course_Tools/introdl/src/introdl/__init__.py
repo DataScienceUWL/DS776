@@ -14,6 +14,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '0')  # Keep CUDA but suppress warnings
 
+# Tell transformers not to use TensorFlow (fixes Keras 3 compatibility issues in CoCalc)
+os.environ['TRANSFORMERS_NO_TF'] = '1'
+os.environ['USE_TF'] = 'NO'
+
 # Suppress Python warnings
 warnings.filterwarnings('ignore', message='.*MessageFactory.*')
 warnings.filterwarnings('ignore', message='.*GetPrototype.*')
@@ -57,8 +61,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.23"
+__version__ = "1.6.24"
 # Version history:
+# 1.6.24 - Added TRANSFORMERS_NO_TF and USE_TF environment variables to fix Keras 3 compatibility in CoCalc
+#          - Prevents transformers from trying to use TensorFlow when Keras 3 is installed
 # 1.6.23 - Added generic homework storage cleanup utilities
 #          - New get_homework_storage_report() auto-detects current homework and analyzes storage
 #          - New clear_homework_storage() removes workspace subfolders and old model folders
