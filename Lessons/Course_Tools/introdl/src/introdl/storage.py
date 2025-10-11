@@ -913,26 +913,65 @@ def export_this_to_html(notebook_path=None):
         if '__DETECTED_NOTEBOOK_NAME__' in ipython.user_ns:
             del ipython.user_ns['__DETECTED_NOTEBOOK_NAME__']
 
-        # Method 2: Fall back to most recently modified notebook
-        notebooks = sorted(
-            [f for f in cwd.glob("*.ipynb")
-             if 'utilities' not in f.name.lower()
-             and 'utils' not in f.name.lower()
-             and 'clean' not in f.name.lower()
-             and '.ipynb_checkpoints' not in str(f)],
-            key=lambda f: f.stat().st_mtime,
-            reverse=True
-        )
+        # Method 2: Fall back to pattern-based detection for homework assignments
+        # Try to detect homework number from directory name
+        hw_num = None
+        if 'Homework_' in cwd.name:
+            try:
+                hw_num = cwd.name.split('_')[1]  # Extract "07" from "Homework_07"
+            except (IndexError, ValueError):
+                pass
+
+        # If in homework folder, look for Homework_XX_Ass*.ipynb pattern
+        if hw_num is not None:
+            assignment_pattern = f"Homework_{hw_num}_Ass*.ipynb"
+            assignment_notebooks = sorted(
+                [f for f in cwd.glob(assignment_pattern)
+                 if '.ipynb_checkpoints' not in str(f)],
+                key=lambda f: f.stat().st_mtime,
+                reverse=True
+            )
+
+            if assignment_notebooks:
+                # Found assignment notebook(s), use most recent
+                notebooks = assignment_notebooks
+            else:
+                # No assignment notebooks found, fall back to all notebooks
+                notebooks = sorted(
+                    [f for f in cwd.glob("*.ipynb")
+                     if 'utilities' not in f.name.lower()
+                     and 'utils' not in f.name.lower()
+                     and 'clean' not in f.name.lower()
+                     and 'storage' not in f.name.lower()
+                     and '.ipynb_checkpoints' not in str(f)],
+                    key=lambda f: f.stat().st_mtime,
+                    reverse=True
+                )
+        else:
+            # Not in homework folder, use general detection
+            notebooks = sorted(
+                [f for f in cwd.glob("*.ipynb")
+                 if 'utilities' not in f.name.lower()
+                 and 'utils' not in f.name.lower()
+                 and 'clean' not in f.name.lower()
+                 and 'storage' not in f.name.lower()
+                 and '.ipynb_checkpoints' not in str(f)],
+                key=lambda f: f.stat().st_mtime,
+                reverse=True
+            )
 
         if not notebooks:
             print("❌ No suitable notebooks found in current directory")
             return None
 
-        # If JavaScript didn't work, use most recently modified
+        # If JavaScript didn't work, use the detected notebook
         if notebook_name is None:
             notebook_name = notebooks[0].name
             print(f"🔍 Auto-detected notebook: {notebook_name}")
-            print("   (Using most recently modified notebook in current directory)")
+            if hw_num is not None and assignment_pattern in str(notebooks[0]):
+                print(f"   (Found matching assignment pattern: Homework_{hw_num}_Ass*.ipynb)")
+            else:
+                print("   (Using most recently modified notebook in current directory)")
         else:
             # JavaScript gave us a path, extract just the filename
             notebook_name = Path(notebook_name).name
