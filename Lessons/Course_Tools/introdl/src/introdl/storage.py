@@ -953,13 +953,8 @@ def export_this_to_html(notebook_path=None):
                 if nb.name != notebook_name:
                     print(f"   • {nb.name}")
 
-        # Method 3: Ask for confirmation
-        print(f"\n📤 Ready to export: {notebook_name}")
-        response = input("Proceed with export to HTML? (y/n): ")
-
-        if response.lower() != 'y':
-            print("❌ Export cancelled")
-            return None
+        # Export directly without confirmation
+        print(f"\n📤 Exporting: {notebook_name}")
 
         # Use the existing export function
         result = export_homework_html_interactive(notebook_name)
@@ -1082,3 +1077,267 @@ def zip_homework_models(hw_num=None, delete_after=False):
         if zip_path.exists():
             zip_path.unlink()
         return None
+
+
+def get_homework_storage_report(current_hw=None):
+    """
+    Get storage report for workspace subfolders and previous lesson/homework models.
+
+    This function analyzes storage usage across:
+    - home_workspace/data/, home_workspace/downloads/, home_workspace/models/
+    - cs_workspace/data/, cs_workspace/downloads/, cs_workspace/models/ (compute servers only)
+    - Lesson_XX_Models folders (Lessons 1 to current homework number)
+    - Homework_XX_Models folders (Homework 1 to current homework number - 1)
+
+    Args:
+        current_hw (int, optional): Current homework number. If None, auto-detects from Path.cwd().
+                                   Assumes current directory name is "Homework_XX" format.
+
+    Returns:
+        tuple: (storage_items, total_storage, current_hw)
+            - storage_items: List of (Path, size_in_bytes) tuples for all analyzed folders
+            - total_storage: Total bytes across all analyzed folders
+            - current_hw: The detected or provided homework number
+
+    Example:
+        ```python
+        from introdl.storage import get_homework_storage_report
+
+        # Auto-detect from current homework folder
+        storage_items, total_storage, hw_num = get_homework_storage_report()
+
+        # Or specify homework number explicitly
+        storage_items, total_storage, hw_num = get_homework_storage_report(current_hw=7)
+        ```
+    """
+    from pathlib import Path
+    import os
+
+    # Auto-detect current homework number if not provided
+    if current_hw is None:
+        cwd = Path.cwd()
+        if 'Homework_' in cwd.name:
+            try:
+                current_hw = int(cwd.name.split('_')[1])
+            except (IndexError, ValueError):
+                # If parsing fails, default to 1
+                current_hw = 1
+                print("⚠️ Could not detect homework number from directory name, defaulting to 1")
+        else:
+            # Not in a homework folder, default to 1
+            current_hw = 1
+            print("⚠️ Not in a homework folder, defaulting to HW 1")
+
+    # Get paths
+    course_root = Path(os.environ.get('DS776_ROOT_DIR', Path.home()))
+    home_workspace = course_root / "home_workspace"
+    cs_workspace = Path.home() / "cs_workspace"
+
+    storage_items = []
+    total_storage = 0
+
+    # 1. Analyze home_workspace subfolders (only data, downloads, models)
+    if home_workspace.exists():
+        for subfolder_name in ['data', 'downloads', 'models']:
+            subfolder = home_workspace / subfolder_name
+            if subfolder.exists():
+                size = get_folder_size(subfolder)
+                storage_items.append((subfolder, size))
+                total_storage += size
+
+    # 2. Analyze cs_workspace subfolders (compute server only - data, downloads, models)
+    if cs_workspace.exists():
+        for subfolder_name in ['data', 'downloads', 'models']:
+            subfolder = cs_workspace / subfolder_name
+            if subfolder.exists():
+                size = get_folder_size(subfolder)
+                storage_items.append((subfolder, size))
+                total_storage += size
+
+    # 3. Analyze Lesson Models (up to current_hw)
+    lessons_dir = course_root / "Lessons"
+    if lessons_dir.exists():
+        for i in range(1, current_hw + 1):
+            # Find lesson directory (may have description after number)
+            lesson_pattern = f"Lesson_{i:02d}*"
+            lesson_dirs = sorted(lessons_dir.glob(lesson_pattern))
+
+            if lesson_dirs:
+                lesson_dir = lesson_dirs[0]
+                # Look for models folder (case-insensitive for _models vs _Models)
+                models_pattern = f"Lesson_{i:02d}*_[Mm]odels"
+                models_dirs = list(lesson_dir.glob(models_pattern))
+
+                if models_dirs:
+                    models_dir = models_dirs[0]
+                    size = get_folder_size(models_dir)
+                    if size > 0:
+                        storage_items.append((models_dir, size))
+                        total_storage += size
+
+    # 4. Analyze Homework Models (up to current_hw - 1)
+    homework_dir = course_root / "Homework"
+    if homework_dir.exists():
+        for i in range(1, current_hw):  # Note: current_hw - 1 is the max
+            hw_folder = homework_dir / f"Homework_{i:02d}"
+
+            if hw_folder.exists():
+                # Look for models folder (case-insensitive)
+                models_pattern = f"Homework_{i:02d}*_[Mm]odels"
+                models_dirs = list(hw_folder.glob(models_pattern))
+
+                if models_dirs:
+                    models_dir = models_dirs[0]
+                    size = get_folder_size(models_dir)
+                    if size > 0:
+                        storage_items.append((models_dir, size))
+                        total_storage += size
+
+    # 5. Special case: YOLO *.pt files in Homework_06 (if current_hw >= 7)
+    if current_hw >= 7 and homework_dir.exists():
+        hw6_folder = homework_dir / "Homework_06"
+        if hw6_folder.exists():
+            # Find all *.pt files directly in Homework_06 folder
+            yolo_files = list(hw6_folder.glob("yolo*.pt"))
+            if yolo_files:
+                # Calculate total size of all YOLO files
+                yolo_total_size = sum(f.stat().st_size for f in yolo_files if f.exists())
+                if yolo_total_size > 0:
+                    # Add as a special marker with the folder and size
+                    # We'll use a tuple with a special marker to indicate these are individual files
+                    storage_items.append((hw6_folder / "__YOLO_PT_FILES__", yolo_total_size))
+                    total_storage += yolo_total_size
+
+    return storage_items, total_storage, current_hw
+
+
+def clear_homework_storage(storage_items, dry_run=False):
+    """
+    Clear the contents of analyzed storage folders.
+
+    This function removes:
+    - Contents of workspace subfolders (data/, downloads/, models/)
+    - Entire Lesson_XX_Models and Homework_XX_Models folders
+
+    Protected files:
+    - home_workspace/api_keys.env (never touched)
+    - Other files in workspace root directories (never touched)
+    - Only specific subfolders are cleared
+
+    Args:
+        storage_items (list): List of (Path, size) tuples from get_homework_storage_report()
+        dry_run (bool, optional): If True, only show what would be deleted. Defaults to False.
+
+    Returns:
+        dict: Results with keys:
+            - cleared_size: Total bytes cleared
+            - cleared_count: Number of folders cleared
+            - failed_count: Number of folders that failed to clear
+
+    Example:
+        ```python
+        from introdl.storage import get_homework_storage_report, clear_homework_storage
+
+        # Get storage report first
+        storage_items, total_storage, hw_num = get_homework_storage_report()
+
+        # Preview what would be cleared (safe)
+        results = clear_homework_storage(storage_items, dry_run=True)
+
+        # Actually clear the storage
+        results = clear_homework_storage(storage_items, dry_run=False)
+        print(f"Freed {results['cleared_size'] / 1e9:.2f} GB")
+        ```
+    """
+    import shutil
+
+    if len(storage_items) == 0:
+        print("✨ Nothing to clear - all folders are already empty or don't exist!")
+        return {'cleared_size': 0, 'cleared_count': 0, 'failed_count': 0}
+
+    print("=" * 70)
+    if dry_run:
+        print("🔍 DRY RUN - Preview of Storage Cleanup")
+    else:
+        print("🗑️ CLEARING STORAGE")
+    print("=" * 70)
+    print(f"\n📋 {'Would clear' if dry_run else 'Clearing'} {len(storage_items)} folders...\n")
+
+    cleared_size = 0
+    cleared_count = 0
+    failed_count = 0
+
+    for folder_path, size in storage_items:
+        if size == 0:
+            continue
+
+        try:
+            # Check if this is the special YOLO files marker
+            if folder_path.name == "__YOLO_PT_FILES__":
+                # This is the special marker for YOLO *.pt files in Homework_06
+                hw6_folder = folder_path.parent
+                status = "Would clear" if dry_run else "Clearing"
+                print(f"🗑️ {status} YOLO *.pt files in Homework_06... ", end="")
+
+                if not dry_run:
+                    # Remove all yolo*.pt files from Homework_06
+                    yolo_files = list(hw6_folder.glob("yolo*.pt"))
+                    for yolo_file in yolo_files:
+                        if yolo_file.exists():
+                            yolo_file.unlink()
+
+                cleared_size += size
+                cleared_count += 1
+                print(f"✅ {format_size(size)}")
+                continue
+
+            # Normal folder processing
+            status = "Would clear" if dry_run else "Clearing"
+            print(f"🗑️ {status} {folder_path.name}... ", end="")
+
+            if not dry_run:
+                # Remove all contents
+                if folder_path.exists():
+                    # For workspace subfolders: remove contents but keep folder
+                    if folder_path.name in ['data', 'downloads', 'models']:
+                        for item in folder_path.iterdir():
+                            if item.is_file():
+                                item.unlink()
+                            elif item.is_dir():
+                                shutil.rmtree(item)
+                    # For Models folders: remove entire folder
+                    else:
+                        shutil.rmtree(folder_path)
+
+            cleared_size += size
+            cleared_count += 1
+            print(f"✅ {format_size(size)}")
+
+        except Exception as e:
+            failed_count += 1
+            print(f"❌ Error: {e}")
+
+    # Summary
+    print("\n" + "=" * 70)
+    if dry_run:
+        print("📊 DRY RUN RESULTS - No files were deleted")
+    else:
+        print("✅ CLEANUP COMPLETE")
+    print("=" * 70)
+    print(f"✅ {'Would clear' if dry_run else 'Cleared'} folders:  {cleared_count}/{len(storage_items)}")
+    print(f"💾 Storage {'would be freed' if dry_run else 'freed'}:    {format_size(cleared_size)}")
+
+    if failed_count > 0:
+        print(f"⚠️ Failed:           {failed_count}")
+
+    if not dry_run:
+        print("\n💡 Remember:")
+        print("   • Data/downloads will re-download automatically when needed")
+        print("   • Model checkpoints can be retrained from your notebook code")
+        print("   • CoCalc backups maintain copies of deleted files")
+
+    return {
+        'cleared_size': cleared_size,
+        'cleared_count': cleared_count,
+        'failed_count': failed_count
+    }

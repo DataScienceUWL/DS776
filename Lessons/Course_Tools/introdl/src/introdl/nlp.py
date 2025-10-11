@@ -1284,3 +1284,281 @@ def print_pipeline_info(pipe):
     print(f"Model: {model.name_or_path}, Size: {model_size:,} parameters")
 
 
+# ============================================================================
+# TrainerWithPretend - HuggingFace Trainer with Smart Loading
+# ============================================================================
+
+try:
+    from transformers import Trainer as HFTrainer
+    from transformers import AutoModelForSequenceClassification
+    from transformers.trainer_utils import TrainOutput
+    import pandas as pd
+    import time
+    from tqdm.auto import tqdm
+
+    _HAS_TRANSFORMERS = True
+except ImportError:
+    _HAS_TRANSFORMERS = False
+
+
+if _HAS_TRANSFORMERS:
+    class TrainerWithPretend(HFTrainer):
+        """
+        Drop-in replacement for HuggingFace Trainer with smart local caching.
+
+        Extends the standard Trainer with a pretend_train mode that:
+        1. Checks for existing trained model in {output_dir}/best_model/
+        2. If found, loads it and displays training metrics
+        3. If not found, proceeds with actual training
+        4. Always saves to best_model/ after training
+
+        This enables students to re-run notebooks without retraining,
+        similar to train_network's pretend_train behavior.
+
+        Usage (identical to standard HuggingFace Trainer):
+            from introdl.nlp import Trainer  # Extended version
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=train_dataset,
+                eval_dataset=eval_dataset,
+                tokenizer=tokenizer,
+                data_collator=data_collator,
+                compute_metrics=compute_metrics,
+                pretend_train=True  # Only extra parameter
+            )
+
+            trainer.train()  # First run: trains, second run: loads
+            history = trainer.get_training_history()  # Access metrics DataFrame
+
+        Args:
+            pretend_train (bool): If True, loads existing model instead of training
+            hf_repo_id (str, optional): HuggingFace Hub repo ID for instructor-hosted models
+            All other args: Same as standard HuggingFace Trainer
+        """
+
+        def __init__(self, *args, pretend_train=False, hf_repo_id=None, **kwargs):
+            self.pretend_train = pretend_train
+            self.hf_repo_id = hf_repo_id
+            self._training_history = None
+            super().__init__(*args, **kwargs)
+
+        def train(self, *args, **kwargs):
+            """
+            Standard train() with smart loading.
+
+            If pretend_train=True and model exists locally or on HF Hub:
+                - Loads the model
+                - Displays training history
+                - Skips training
+            Otherwise:
+                - Performs actual training
+                - Saves to best_model/ directory
+                - Saves training_history.json
+
+            Returns:
+                TrainOutput: Standard HuggingFace training output
+            """
+            if self.pretend_train and self._try_load_local():
+                # Model already trained, simulate and return
+                self._simulate_training_with_metrics()
+                return self._create_train_output()
+
+            # No local model found, or pretend_train=False
+            # Proceed with actual training
+            output = super().train(*args, **kwargs)
+
+            # Save model and training history
+            self._save_best_model()
+            self._save_training_history()
+
+            return output
+
+        def _try_load_local(self):
+            """
+            Try loading from local best_model/ directory.
+
+            Returns:
+                bool: True if model loaded successfully
+            """
+            best_model_dir = Path(self.args.output_dir) / 'best_model'
+
+            if not self._is_complete_model(best_model_dir):
+                return False
+
+            try:
+                print(f"✓ Loading pre-trained model from: {best_model_dir.relative_to(Path.cwd())}")
+
+                # Load model
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    best_model_dir,
+                    local_files_only=True
+                )
+
+                # Load training history
+                self._training_history = self._load_training_history(best_model_dir)
+
+                return True
+
+            except Exception as e:
+                print(f"⚠ Load failed: {e}. Training from scratch...")
+                return False
+
+        def _is_complete_model(self, model_dir):
+            """Check if directory has required model files."""
+            if not model_dir.exists():
+                return False
+
+            has_config = (model_dir / 'config.json').exists()
+            has_weights = (
+                (model_dir / 'model.safetensors').exists() or
+                (model_dir / 'pytorch_model.bin').exists()
+            )
+
+            return has_config and has_weights
+
+        def _save_best_model(self):
+            """Save model to best_model/ after training."""
+            best_model_dir = Path(self.args.output_dir) / 'best_model'
+            best_model_dir.mkdir(parents=True, exist_ok=True)
+
+            self.model.save_pretrained(best_model_dir)
+            self.tokenizer.save_pretrained(best_model_dir)
+
+            print(f"\n✓ Model saved to: {best_model_dir.relative_to(Path.cwd())}")
+
+        def _save_training_history(self):
+            """Save training metrics after actual training."""
+            best_model_dir = Path(self.args.output_dir) / 'best_model'
+
+            # Extract metrics from HuggingFace's log_history
+            history_df = self._extract_metrics_dataframe()
+
+            # Save as JSON for easy loading
+            history_file = best_model_dir / 'training_history.json'
+            history_df.to_json(history_file, orient='records', indent=2)
+
+        def _load_training_history(self, model_dir):
+            """Load training metrics from saved file."""
+            history_file = model_dir / 'training_history.json'
+            if history_file.exists():
+                return pd.read_json(history_file)
+            return None
+
+        def _extract_metrics_dataframe(self):
+            """
+            Convert Trainer.state.log_history to clean DataFrame.
+
+            Returns DataFrame with columns:
+                epoch, train_loss, eval_loss, eval_accuracy, eval_f1, etc.
+            """
+            logs = self.state.log_history
+
+            # Separate training and eval logs
+            train_logs = [log for log in logs if 'loss' in log and 'epoch' in log]
+            eval_logs = [log for log in logs if 'eval_loss' in log]
+
+            # Build structured data
+            data = []
+            for eval_log in eval_logs:
+                epoch = eval_log.get('epoch')
+
+                # Find corresponding training loss
+                train_loss = None
+                for train_log in train_logs:
+                    if train_log.get('epoch') == epoch:
+                        train_loss = train_log.get('loss')
+                        break
+
+                row = {
+                    'epoch': epoch,
+                    'train_loss': train_loss,
+                    'eval_loss': eval_log.get('eval_loss'),
+                    'eval_accuracy': eval_log.get('eval_accuracy'),
+                    'eval_f1': eval_log.get('eval_f1'),
+                    'eval_precision': eval_log.get('eval_precision'),
+                    'eval_recall': eval_log.get('eval_recall'),
+                }
+                data.append(row)
+
+            df = pd.DataFrame(data)
+
+            # Round to 4 decimal places for readability
+            numeric_cols = df.select_dtypes(include=['float64']).columns
+            df[numeric_cols] = df[numeric_cols].round(4)
+
+            return df
+
+        def _simulate_training_with_metrics(self):
+            """Display training metrics when loading pre-trained model."""
+            num_epochs = int(self.args.num_train_epochs)
+
+            print("Model already trained. Loading checkpoint...\n")
+
+            # Quick loading animation
+            with tqdm(total=num_epochs, desc="Loading", leave=False) as pbar:
+                for _ in range(num_epochs):
+                    time.sleep(1 / num_epochs)  # Fast loading
+                    pbar.update(1)
+
+            # Display training history
+            if self._training_history is not None:
+                print("\n📊 Training History:")
+                try:
+                    from IPython.display import display
+                    display(self._training_history)
+                except ImportError:
+                    print(self._training_history.to_string(index=False))
+
+                # Summary of best performance
+                if 'eval_accuracy' in self._training_history.columns:
+                    best_idx = self._training_history['eval_accuracy'].idxmax()
+                    best_epoch = self._training_history.loc[best_idx, 'epoch']
+                    best_acc = self._training_history.loc[best_idx, 'eval_accuracy']
+                    print(f"\n✓ Best model: Epoch {best_epoch:.0f} | Accuracy: {best_acc:.4f}")
+            else:
+                print("⚠ No training history found. Model loaded but metrics unavailable.")
+
+        def _create_train_output(self):
+            """Create TrainOutput for compatibility."""
+            return TrainOutput(global_step=0, training_loss=0.0, metrics={})
+
+        def get_training_history(self):
+            """
+            Get training history as DataFrame (useful for plotting).
+
+            Returns:
+                pd.DataFrame: Training metrics with columns:
+                    epoch, train_loss, eval_loss, eval_accuracy, eval_f1, etc.
+
+            Example:
+                >>> history = trainer.get_training_history()
+                >>>
+                >>> # Plot training curves
+                >>> import matplotlib.pyplot as plt
+                >>> plt.plot(history['epoch'], history['train_loss'], label='Train')
+                >>> plt.plot(history['epoch'], history['eval_loss'], label='Eval')
+                >>> plt.xlabel('Epoch')
+                >>> plt.ylabel('Loss')
+                >>> plt.legend()
+                >>> plt.show()
+            """
+            if self._training_history is not None:
+                return self._training_history
+            else:
+                # Just trained, extract from logs
+                return self._extract_metrics_dataframe()
+
+    # Export as "Trainer" for drop-in replacement
+    Trainer = TrainerWithPretend
+
+else:
+    # Transformers not installed - provide stub
+    def Trainer(*args, **kwargs):
+        raise ImportError(
+            "transformers package not installed. "
+            "Install with: pip install transformers"
+        )
+
+

@@ -57,8 +57,13 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.22"
+__version__ = "1.6.23"
 # Version history:
+# 1.6.23 - Added generic homework storage cleanup utilities
+#          - New get_homework_storage_report() auto-detects current homework and analyzes storage
+#          - New clear_homework_storage() removes workspace subfolders and old model folders
+#          - Special handling for YOLO *.pt files in Homework_06 (cleaned from HW 7+)
+#          - Created generic Storage_Cleanup_After_HW.ipynb that works from any homework folder
 # 1.6.22 - Enhanced export_this_to_html() with optional notebook_path parameter
 #          - Can now specify exact notebook to export: export_this_to_html('path/to/notebook.ipynb')
 #          - Skips auto-detection when path is provided
@@ -253,7 +258,9 @@ try:
         delete_current_lesson_models,
         export_homework_html_interactive,
         export_this_to_html,
-        zip_homework_models
+        zip_homework_models,
+        get_homework_storage_report,
+        clear_homework_storage
     )
 
     # Path utilities
@@ -313,6 +320,7 @@ __all__ = [
     # Storage (commonly used)
     "display_storage_report", "cleanup_old_cache", "delete_current_lesson_models",
     "export_homework_html_interactive", "export_this_to_html", "zip_homework_models",
+    "get_homework_storage_report", "clear_homework_storage",
 
     # Notebook state management
     "save_state", "load_state", "enable_cell_autosave", "list_states", "delete_states",
