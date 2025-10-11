@@ -6,6 +6,7 @@ This script performs the following tasks:
 1. Remove all *Utilities*.ipynb notebooks from Homework folders
 2. Copy Storage_Cleanup_After_HW.ipynb from Course_Tools to Homework_05 through Homework_12
 3. Remove all backup files ending with ~ from Homework_07 through Homework_12
+4. Remove old Homework_07_Storage* files from Homework_07 folder
 
 Usage:
     python cleanup_student_homework.py
@@ -95,6 +96,20 @@ def remove_backup_files(homework_dir):
     return removed_files
 
 
+def remove_old_storage_notebooks(homework_dir):
+    """Remove old Homework_07_Storage* files from Homework_07 folder."""
+    removed_files = []
+
+    hw_folder = homework_dir / "Homework_07"
+    if hw_folder.exists() and hw_folder.is_dir():
+        for storage_file in hw_folder.glob("Homework_07_Storage*"):
+            print(f"  Removing old storage file: {storage_file.relative_to(homework_dir)}")
+            storage_file.unlink()
+            removed_files.append(storage_file)
+
+    return removed_files
+
+
 def main():
     """Main cleanup function."""
     print("=" * 70)
@@ -131,6 +146,12 @@ def main():
         print(f"✓ Removed {len(removed_backups)} backup files")
         print()
 
+        # Task 4: Remove old storage notebooks from Homework_07
+        print("Task 4: Removing old Homework_07_Storage* files from Homework_07...")
+        removed_storage = remove_old_storage_notebooks(homework_dir)
+        print(f"✓ Removed {len(removed_storage)} old storage files")
+        print()
+
         # Summary
         print("=" * 70)
         print("CLEANUP COMPLETE")
@@ -138,6 +159,7 @@ def main():
         print(f"  Utilities notebooks removed:  {len(removed_utilities)}")
         print(f"  Storage_Cleanup files copied: {len(copied_cleanup)}")
         print(f"  Backup files removed:         {len(removed_backups)}")
+        print(f"  Old storage files removed:    {len(removed_storage)}")
         print()
 
         return 0
