@@ -7,6 +7,7 @@ This script performs the following tasks:
 2. Copy Storage_Cleanup_After_HW.ipynb from Course_Tools to Homework_05 through Homework_12
 3. Remove all backup files ending with ~ from Homework_07 through Homework_12
 4. Remove old Homework_07_Storage* files from Homework_07 folder
+5. Fix import order in Homework_07_Assignment.ipynb (introdl before transformers)
 
 Usage:
     python cleanup_student_homework.py
@@ -17,6 +18,7 @@ all cleanup operations.
 
 import os
 import shutil
+import json
 from pathlib import Path
 
 
@@ -110,6 +112,80 @@ def remove_old_storage_notebooks(homework_dir):
     return removed_files
 
 
+def fix_homework_07_imports(homework_dir):
+    """
+    Fix import order in Homework_07_Assignment.ipynb.
+
+    Ensures introdl is imported before transformers to prevent Keras 3 compatibility issues.
+    Only modifies the import cell if it has the wrong order.
+    """
+    hw_07_notebook = homework_dir / "Homework_07" / "Homework_07_Assignment.ipynb"
+
+    if not hw_07_notebook.exists():
+        print(f"  ⚠️  Skipping: Homework_07_Assignment.ipynb not found")
+        return False
+
+    try:
+        # Read the notebook
+        with open(hw_07_notebook, 'r', encoding='utf-8') as f:
+            nb = json.load(f)
+
+        # Find the imports cell (should be cell index 2 based on structure)
+        modified = False
+        for cell in nb['cells']:
+            if cell['cell_type'] == 'code':
+                source = ''.join(cell['source']) if isinstance(cell['source'], list) else cell['source']
+
+                # Check if this is the imports cell (has both transformers and introdl imports)
+                if 'from transformers import' in source and 'from introdl import' in source:
+                    # Check if transformers comes before introdl (wrong order)
+                    transformers_pos = source.find('from transformers import')
+                    introdl_pos = source.find('from introdl import')
+
+                    if transformers_pos < introdl_pos and transformers_pos != -1:
+                        print(f"  Found incorrect import order in Homework_07_Assignment.ipynb")
+
+                        # Rewrite the cell with correct order
+                        new_source = """import os
+import torch
+from introdl import (
+    get_device,
+    wrap_print_text,
+    config_paths_keys,
+    llm_generate,
+    clear_pipeline,
+    print_pipeline_info,
+    display_markdown,
+    show_session_spending
+)
+from transformers import pipeline
+# Wrap print to format text nicely at 120 characters
+print = wrap_print_text(print, width=120)
+
+device = get_device()
+
+paths = config_paths_keys()
+"""
+                        cell['source'] = new_source
+                        modified = True
+                        break
+
+        if modified:
+            # Write back the notebook
+            with open(hw_07_notebook, 'w', encoding='utf-8') as f:
+                json.dump(nb, f, indent=1)
+
+            print(f"  ✓ Fixed import order: introdl now imported before transformers")
+            return True
+        else:
+            print(f"  ✓ Import order already correct (introdl before transformers)")
+            return False
+
+    except Exception as e:
+        print(f"  ⚠️  Error fixing imports: {e}")
+        return False
+
+
 def main():
     """Main cleanup function."""
     print("=" * 70)
@@ -152,6 +228,12 @@ def main():
         print(f"✓ Removed {len(removed_storage)} old storage files")
         print()
 
+        # Task 5: Fix import order in Homework_07
+        print("Task 5: Fixing import order in Homework_07_Assignment.ipynb...")
+        fixed_imports = fix_homework_07_imports(homework_dir)
+        print(f"✓ Import order check complete")
+        print()
+
         # Summary
         print("=" * 70)
         print("CLEANUP COMPLETE")
@@ -160,6 +242,7 @@ def main():
         print(f"  Storage_Cleanup files copied: {len(copied_cleanup)}")
         print(f"  Backup files removed:         {len(removed_backups)}")
         print(f"  Old storage files removed:    {len(removed_storage)}")
+        print(f"  Homework_07 imports fixed:    {'Yes' if fixed_imports else 'Already correct'}")
         print()
 
         return 0
