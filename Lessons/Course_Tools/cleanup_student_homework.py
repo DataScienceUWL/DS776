@@ -8,6 +8,7 @@ This script performs the following tasks:
 3. Remove all backup files ending with ~ from Homework_07 through Homework_12
 4. Remove old Homework_07_Storage* files from Homework_07 folder
 5. Fix import order in Homework_07_Assignment.ipynb (introdl before transformers)
+6. Fix import order in L07_2_NLP_Tasks.ipynb (introdl before transformers)
 
 Usage:
     python cleanup_student_homework.py
@@ -186,6 +187,78 @@ paths = config_paths_keys()
         return False
 
 
+def fix_lesson_07_imports(course_root):
+    """
+    Fix import order in L07_2_NLP_Tasks.ipynb.
+
+    Ensures introdl is imported before transformers to prevent Keras 3 compatibility issues.
+    Only modifies the import cell if it has the wrong order.
+    """
+    lesson_notebook = course_root / "Lessons" / "Lesson_07_Transformers_Intro" / "L07_2_NLP_Tasks.ipynb"
+
+    if not lesson_notebook.exists():
+        print(f"  ⚠️  Skipping: L07_2_NLP_Tasks.ipynb not found")
+        return False
+
+    try:
+        # Read the notebook
+        with open(lesson_notebook, 'r', encoding='utf-8') as f:
+            nb = json.load(f)
+
+        # Find the imports cell
+        modified = False
+        for cell in nb['cells']:
+            if cell['cell_type'] == 'code':
+                source = ''.join(cell['source']) if isinstance(cell['source'], list) else cell['source']
+
+                # Check if this is the imports cell (has both transformers and introdl imports)
+                if 'from transformers import' in source and 'from introdl import' in source:
+                    # Check if transformers comes before introdl (wrong order)
+                    transformers_pos = source.find('from transformers import')
+                    introdl_pos = source.find('from introdl import')
+
+                    if transformers_pos < introdl_pos and transformers_pos != -1:
+                        print(f"  Found incorrect import order in L07_2_NLP_Tasks.ipynb")
+
+                        # Rewrite the cell with correct order
+                        new_source = """from introdl import (
+    get_device,
+    wrap_print_text,
+    config_paths_keys,
+    llm_generate,
+    clear_pipeline,
+    print_pipeline_info,
+    display_markdown,
+    show_session_spending
+)
+from transformers import pipeline
+
+# Wrap print to format text nicely at 120 characters
+print = wrap_print_text(print, width=120)
+
+device = get_device()
+
+paths = config_paths_keys()"""
+                        cell['source'] = new_source
+                        modified = True
+                        break
+
+        if modified:
+            # Write back the notebook
+            with open(lesson_notebook, 'w', encoding='utf-8') as f:
+                json.dump(nb, f, indent=1)
+
+            print(f"  ✓ Fixed import order: introdl now imported before transformers")
+            return True
+        else:
+            print(f"  ✓ Import order already correct (introdl before transformers)")
+            return False
+
+    except Exception as e:
+        print(f"  ⚠️  Error fixing imports: {e}")
+        return False
+
+
 def main():
     """Main cleanup function."""
     print("=" * 70)
@@ -230,7 +303,13 @@ def main():
 
         # Task 5: Fix import order in Homework_07
         print("Task 5: Fixing import order in Homework_07_Assignment.ipynb...")
-        fixed_imports = fix_homework_07_imports(homework_dir)
+        fixed_hw_imports = fix_homework_07_imports(homework_dir)
+        print(f"✓ Import order check complete")
+        print()
+
+        # Task 6: Fix import order in Lesson_07
+        print("Task 6: Fixing import order in L07_2_NLP_Tasks.ipynb...")
+        fixed_lesson_imports = fix_lesson_07_imports(course_root)
         print(f"✓ Import order check complete")
         print()
 
@@ -242,7 +321,8 @@ def main():
         print(f"  Storage_Cleanup files copied: {len(copied_cleanup)}")
         print(f"  Backup files removed:         {len(removed_backups)}")
         print(f"  Old storage files removed:    {len(removed_storage)}")
-        print(f"  Homework_07 imports fixed:    {'Yes' if fixed_imports else 'Already correct'}")
+        print(f"  Homework_07 imports fixed:    {'Yes' if fixed_hw_imports else 'Already correct'}")
+        print(f"  Lesson_07 imports fixed:      {'Yes' if fixed_lesson_imports else 'Already correct'}")
         print()
 
         return 0
