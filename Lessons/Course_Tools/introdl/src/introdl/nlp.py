@@ -1307,10 +1307,11 @@ if _HAS_TRANSFORMERS:
         Drop-in replacement for HuggingFace Trainer with smart local caching.
 
         Extends the standard Trainer with a pretend_train mode that:
-        1. Checks for existing trained model in {output_dir}/best_model/
-        2. If found, loads it and displays training metrics
-        3. If not found, proceeds with actual training
-        4. Always saves to best_model/ after training
+        1. Checks HuggingFace Hub for instructor-hosted model (hobbes99/DS776-models/{model_name}/)
+        2. If not on Hub, checks for existing trained model in {output_dir}/best_model/
+        3. If found, loads it and displays training metrics
+        4. If not found, proceeds with actual training
+        5. Always saves to best_model/ after training
 
         This enables students to re-run notebooks without retraining,
         similar to train_network's pretend_train behavior.
@@ -1334,13 +1335,11 @@ if _HAS_TRANSFORMERS:
 
         Args:
             pretend_train (bool): If True, loads existing model instead of training
-            hf_repo_id (str, optional): HuggingFace Hub repo ID for instructor-hosted models
             All other args: Same as standard HuggingFace Trainer
         """
 
-        def __init__(self, *args, pretend_train=False, hf_repo_id=None, **kwargs):
+        def __init__(self, *args, pretend_train=False, **kwargs):
             self.pretend_train = pretend_train
-            self.hf_repo_id = hf_repo_id
             self._training_history = None
             super().__init__(*args, **kwargs)
 
@@ -1377,18 +1376,69 @@ if _HAS_TRANSFORMERS:
 
         def _try_load_local(self):
             """
-            Try loading from local best_model/ directory.
+            Try loading model from HuggingFace Hub or local directory.
+
+            Priority order:
+            1. HuggingFace Hub: hobbes99/DS776-models/{model_name}/ (auto-derived from output_dir)
+            2. Local best_model/ directory
+            3. Train from scratch
 
             Returns:
                 bool: True if model loaded successfully
             """
+            # Derive model name from output_dir
+            # Example: 'Lesson_08_Models/L08_fine_tune_distilbert' → 'L08_fine_tune_distilbert'
+            output_path = Path(self.args.output_dir)
+            model_name = output_path.name  # Last component of path
+
+            # FIRST: Try HuggingFace Hub
+            hf_repo_id = "hobbes99/DS776-models"
+
+            try:
+                print(f"✓ Checking HuggingFace Hub: {hf_repo_id}/{model_name}")
+
+                # Load model from HuggingFace Hub subdirectory
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    hf_repo_id,
+                    subfolder=model_name,  # Model stored in subdirectory
+                    trust_remote_code=False  # Security: don't execute remote code
+                )
+
+                # Load training history from HF Hub if available
+                self._training_history = self._load_training_history_from_hub(hf_repo_id, model_name)
+
+                # Cache locally for future use
+                best_model_dir = Path(self.args.output_dir) / 'best_model'
+                best_model_dir.mkdir(parents=True, exist_ok=True)
+                self.model.save_pretrained(best_model_dir)
+                self.tokenizer.save_pretrained(best_model_dir)
+
+                # Save training history locally if we got it from HF Hub
+                if self._training_history is not None:
+                    history_file = best_model_dir / 'training_history.json'
+                    self._training_history.to_json(history_file, orient='records', indent=2)
+
+                try:
+                    print(f"✓ Model cached locally to: {best_model_dir.relative_to(Path.cwd())}")
+                except ValueError:
+                    print(f"✓ Model cached locally to: {best_model_dir}")
+                return True
+
+            except Exception as e:
+                print(f"⚠ HuggingFace Hub load failed: {e}")
+                print("  Falling back to local model or training from scratch...")
+
+            # SECOND: Try local best_model/ directory
             best_model_dir = Path(self.args.output_dir) / 'best_model'
 
             if not self._is_complete_model(best_model_dir):
                 return False
 
             try:
-                print(f"✓ Loading pre-trained model from: {best_model_dir.relative_to(Path.cwd())}")
+                try:
+                    print(f"✓ Loading pre-trained model from: {best_model_dir.relative_to(Path.cwd())}")
+                except ValueError:
+                    print(f"✓ Loading pre-trained model from: {best_model_dir}")
 
                 # Load model
                 self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -1426,7 +1476,10 @@ if _HAS_TRANSFORMERS:
             self.model.save_pretrained(best_model_dir)
             self.tokenizer.save_pretrained(best_model_dir)
 
-            print(f"\n✓ Model saved to: {best_model_dir.relative_to(Path.cwd())}")
+            try:
+                print(f"\n✓ Model saved to: {best_model_dir.relative_to(Path.cwd())}")
+            except ValueError:
+                print(f"\n✓ Model saved to: {best_model_dir}")
 
         def _save_training_history(self):
             """Save training metrics after actual training."""
@@ -1445,6 +1498,34 @@ if _HAS_TRANSFORMERS:
             if history_file.exists():
                 return pd.read_json(history_file)
             return None
+
+        def _load_training_history_from_hub(self, repo_id, model_name):
+            """
+            Load training history from HuggingFace Hub.
+
+            Args:
+                repo_id: Base HuggingFace repository ID (e.g., 'hobbes99/DS776-models')
+                model_name: Model subdirectory name (e.g., 'L08_fine_tune_distilbert')
+
+            Returns:
+                pd.DataFrame or None: Training history if available
+            """
+            try:
+                from huggingface_hub import hf_hub_download
+
+                # Download training_history.json from model's subdirectory
+                # Path in repo: {model_name}/training_history.json
+                history_file = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=f'{model_name}/training_history.json',
+                    repo_type='model'
+                )
+
+                return pd.read_json(history_file)
+
+            except Exception:
+                # Training history not available on Hub (not critical)
+                return None
 
         def _extract_metrics_dataframe(self):
             """

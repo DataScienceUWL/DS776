@@ -61,8 +61,17 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.25"
+__version__ = "1.6.27"
 # Version history:
+# 1.6.27 - BREAKING CHANGE: Removed hf_repo_id parameter from TrainerWithPretend for cleaner API
+#          - Model name now auto-derived from output_dir (e.g., 'Lesson_08_Models/L08_fine_tune_distilbert' → 'L08_fine_tune_distilbert')
+#          - Automatically checks hobbes99/DS776-models/{model_name}/ on HF Hub without requiring parameter
+#          - Priority unchanged: HF Hub → Local → Train from scratch
+#          - Signature now identical to standard HuggingFace Trainer (except pretend_train parameter)
+# 1.6.26 - TrainerWithPretend now checks HuggingFace Hub FIRST (before local models) when pretend_train=True
+#          - Added hf_repo_id parameter to load instructor-hosted models from HF Hub
+#          - Priority: HF Hub → Local → Train from scratch
+#          - Automatically caches HF Hub models locally for faster future loads
 # 1.6.25 - Export Trainer (TrainerWithPretend) from nlp.py for HuggingFace fine-tuning with pretend_train
 #          - Enables smart caching: `from introdl import Trainer` for drop-in replacement of HF Trainer
 # 1.6.24 - Added TRANSFORMERS_NO_TF and USE_TF environment variables to fix Keras 3 compatibility in CoCalc
