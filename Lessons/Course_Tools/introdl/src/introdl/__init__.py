@@ -61,8 +61,13 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.27"
+__version__ = "1.6.28"
 # Version history:
+# 1.6.28 - Fixed "I/O operation on closed file" logging errors in Jupyter/CoCalc
+#          - Added fix_logging_handlers() utility function to clean up closed logging handlers
+#          - config_paths_keys() now automatically fixes logging handlers on startup
+#          - Prevents logging errors when using transformers library in Jupyter notebooks
+#          - Particularly fixes issues in CoCalc with transformers v4.49.0+
 # 1.6.27 - BREAKING CHANGE: Removed hf_repo_id parameter from TrainerWithPretend for cleaner API
 #          - Model name now auto-derived from output_dir (e.g., 'Lesson_08_Models/L08_fine_tune_distilbert' → 'L08_fine_tune_distilbert')
 #          - Automatically checks hobbes99/DS776-models/{model_name}/ on HF Hub without requiring parameter
@@ -207,7 +212,8 @@ try:
         wrap_print_text,
         classifier_predict,
         detect_jupyter_environment,
-        print_model_freeze_summary
+        print_model_freeze_summary,
+        fix_logging_handlers
     )
 
     # Training functions
@@ -311,7 +317,7 @@ __all__ = [
     # Core utilities
     "config_paths_keys", "get_device", "load_model", "load_results", "summarizer",
     "create_CIFAR10_loaders", "convert_nb_to_html", "wrap_print_text", "classifier_predict",
-    "detect_jupyter_environment", "print_model_freeze_summary",
+    "detect_jupyter_environment", "print_model_freeze_summary", "fix_logging_handlers",
 
     # Training
     "train_network", "train_simple_network", "visualize2DSoftmax",

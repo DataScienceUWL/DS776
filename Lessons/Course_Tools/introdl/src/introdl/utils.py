@@ -56,6 +56,50 @@ import sys
 from pathlib import Path
 
 
+def fix_logging_handlers():
+    """
+    Fix closed logging handlers that cause 'I/O operation on closed file' errors in Jupyter.
+
+    This is a workaround for a common CoCalc/Jupyter issue where logging handlers
+    point to closed file streams, causing errors when libraries try to log warnings.
+    Call this function if you see logging errors when using transformers or other libraries.
+
+    Example:
+        ```python
+        from introdl import fix_logging_handlers
+
+        # Fix logging before using transformers
+        fix_logging_handlers()
+
+        # Now use transformers without logging errors
+        from transformers import pipeline
+        classifier = pipeline("sentiment-analysis")
+        ```
+    """
+    import logging
+    import sys
+
+    # Fix handlers for common libraries that have logging issues
+    for logger_name in ['transformers', 'tensorflow', 'absl', 'huggingface_hub']:
+        logger = logging.getLogger(logger_name)
+
+        # Remove any handlers with closed streams
+        for handler in logger.handlers[:]:
+            try:
+                # Test if the handler's stream is closed
+                if hasattr(handler, 'stream') and handler.stream.closed:
+                    logger.removeHandler(handler)
+            except (AttributeError, ValueError):
+                # If we can't check or the handler is broken, remove it
+                logger.removeHandler(handler)
+
+        # Add a fresh handler if none exist
+        if not logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.ERROR)
+            logger.addHandler(handler)
+
+
 def detect_jupyter_environment():
     """
     Detects the Jupyter environment and returns one of:
@@ -605,6 +649,13 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         except Exception:
             # Silently fail if cost tracking initialization doesn't work
             pass
+
+    # -- Fix logging handlers (prevents "I/O operation on closed file" errors) --
+    try:
+        fix_logging_handlers()
+    except Exception:
+        # Silently fail if logging handler fix doesn't work
+        pass
 
     # Print version (condensed)
     try:
