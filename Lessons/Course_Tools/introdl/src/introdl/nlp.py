@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union, Any
 from datetime import datetime
 from openai import OpenAI
+import requests
+from tqdm.auto import tqdm
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -747,6 +749,81 @@ def _parse_json_response(content: str) -> Optional[Dict[str, Any]]:
 
 
 # ============================================================================
+# Direct HTTP Request Helper (for OpenRouter reasoning mode)
+# ============================================================================
+
+def _make_openrouter_http_request(
+    api_key: str,
+    model_id: str,
+    messages: List[dict],
+    temperature: float,
+    max_tokens: int,
+    response_format: Optional[dict] = None,
+    reasoning_params: Optional[dict] = None
+) -> dict:
+    """
+    Make direct HTTP POST request to OpenRouter API.
+
+    Required for reasoning mode because the OpenAI SDK doesn't support
+    custom top-level parameters like 'reasoning'.
+
+    Args:
+        api_key: OpenRouter API key
+        model_id: Full model ID (e.g., 'google/gemini-2.5-flash')
+        messages: Chat messages array
+        temperature: Sampling temperature
+        max_tokens: Max tokens to generate
+        response_format: Optional response format dict for JSON mode
+        reasoning_params: Optional reasoning configuration dict
+
+    Returns:
+        Response dict with 'choices', 'usage', etc. (compatible with OpenAI format)
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": os.environ.get("OPENROUTER_REFERRER", "http://localhost"),
+        "X-Title": os.environ.get("OPENROUTER_APP_TITLE", "DS776 Deep Learning"),
+    }
+
+    # Build request payload
+    payload = {
+        "model": model_id,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+
+    # Add response format if specified (JSON mode)
+    if response_format:
+        payload["response_format"] = response_format
+
+    # Add reasoning parameters at TOP LEVEL (not in extra_body)
+    if reasoning_params:
+        payload["reasoning"] = reasoning_params
+
+    # Make request
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+
+    # Check for errors and provide detailed error message
+    if response.status_code != 200:
+        error_detail = response.text
+        try:
+            error_json = response.json()
+            error_msg = error_json.get('error', {}).get('message', error_detail)
+        except:
+            error_msg = error_detail
+
+        raise requests.HTTPError(
+            f"OpenRouter API error ({response.status_code}): {error_msg}"
+        )
+
+    return response.json()
+
+
+# ============================================================================
 # Main Generation Function
 # ============================================================================
 
@@ -765,6 +842,9 @@ def llm_generate(
     print_cost: bool = False,
     estimate_cost: bool = None,  # Alias for print_cost
     track_cost: bool = True,
+    enable_reasoning: bool = False,
+    reasoning_effort: str = "medium",
+    reasoning_budget: Optional[int] = None,
     **kwargs
 ) -> Union[str, dict, List[str], List[dict]]:
     """
@@ -799,6 +879,9 @@ def llm_generate(
         cost_per_m_out: Cost per million output tokens (for cost tracking with non-OpenRouter providers)
         print_cost: Print cost after generation
         track_cost: Update persistent cost tracking (OpenRouter only)
+        enable_reasoning: Enable reasoning/thinking mode for supported models
+        reasoning_effort: Effort level for reasoning ("low", "medium", "high") - used by OpenAI and DeepSeek
+        reasoning_budget: Token budget for reasoning output (1024+) - used by Anthropic and Gemini
         **kwargs: Additional parameters (for future extensions)
 
     Returns:
@@ -870,6 +953,24 @@ def llm_generate(
         >>> schema = {'type': 'object', 'properties': {'answer': {'type': 'string'}}}
         >>> response = llm_generate('deepseek-v3.1', 'Answer in JSON',
         ...                         mode='json', user_schema=schema)
+
+        >>> # Enable reasoning for Gemini (token budget)
+        >>> response = llm_generate('gemini-flash',
+        ...                         'Solve this complex problem: ...',
+        ...                         enable_reasoning=True,
+        ...                         reasoning_budget=2000)  # 2000 tokens for reasoning
+
+        >>> # Enable reasoning for Claude (token budget)
+        >>> response = llm_generate('anthropic/claude-opus-4',
+        ...                         'Think through this step-by-step: ...',
+        ...                         enable_reasoning=True,
+        ...                         reasoning_budget=3000)
+
+        >>> # Enable reasoning for OpenAI o3 (effort level)
+        >>> response = llm_generate('openai/o3-mini',
+        ...                         'Complex reasoning task...',
+        ...                         enable_reasoning=True,
+        ...                         reasoning_effort='high')
     """
     # Handle estimate_cost as alias for print_cost
     if estimate_cost is not None:
@@ -942,7 +1043,21 @@ def llm_generate(
         else:
             system_prompt = "You are a helpful AI assistant."
 
-    for prompt in prompt_list:
+    # Determine if we should show progress bar (only for multiple prompts)
+    show_progress = len(prompt_list) > 1
+
+    # Wrap iterator with tqdm if showing progress
+    # Use smoothing and dynamic_ncols for better display in notebooks
+    iterator = tqdm(
+        prompt_list,
+        desc="Generating",
+        disable=not show_progress,
+        smoothing=0.1,  # Smooth ETA estimates
+        dynamic_ncols=True,  # Adapt to terminal width
+        unit="prompt"
+    ) if show_progress else prompt_list
+
+    for prompt in iterator:
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
@@ -983,17 +1098,100 @@ def llm_generate(
                 # Basic JSON mode
                 api_params["response_format"] = {"type": "json_object"}
 
-        # Disable reasoning for deepseek models to reduce tokens/cost
-        if model_id.startswith("deepseek/"):
-            api_params["extra_body"] = {
-                "reasoning": {
-                    "enabled": False
+        # Handle reasoning/thinking mode
+        # Check model's default reasoning configuration if enable_reasoning not explicitly set
+        if is_openrouter:
+            metadata = get_model_metadata(model_name)
+            reasoning_config = metadata.get('reasoning_support', {})
+            supports_reasoning = reasoning_config.get('supports_reasoning', False)
+            default_reasoning = reasoning_config.get('default_reasoning_enabled', False)
+            reasoning_type = reasoning_config.get('reasoning_type')
+        else:
+            # For non-OpenRouter, assume no reasoning support unless explicitly enabled
+            supports_reasoning = False
+            default_reasoning = False
+            reasoning_type = None
+
+        # Determine if reasoning should be enabled
+        # Priority: explicit enable_reasoning parameter > model default
+        should_enable_reasoning = enable_reasoning if enable_reasoning is not None else default_reasoning
+
+        # Build reasoning parameters for OpenRouter direct HTTP request
+        reasoning_params = None
+        if is_openrouter and should_enable_reasoning and supports_reasoning:
+            if reasoning_type == "effort":
+                # OpenAI (o1, o3), DeepSeek, and Meta (Llama-4-maverick) use effort levels
+                reasoning_params = {
+                    "effort": reasoning_effort  # "low", "medium", "high"
                 }
+            elif reasoning_type == "budget":
+                # Anthropic (Claude) and Gemini use token budgets
+                # IMPORTANT: Budget-based reasoning requires max_tokens >= 1024
+                budget = reasoning_budget if reasoning_budget is not None else max_tokens
+
+                # Enforce minimum 1024 tokens for budget-based reasoning
+                if max_tokens < 1024:
+                    max_tokens = 1024
+                    if print_cost:
+                        print(f"ℹ️  Budget-based reasoning requires max_tokens >= 1024. Adjusted to {max_tokens}")
+
+                reasoning_params = {
+                    "max_tokens": max(1024, budget)  # Minimum 1024 tokens for reasoning budget
+                }
+            elif should_enable_reasoning:
+                # Warn if reasoning requested but type unknown
+                if print_cost:
+                    print(f"⚠️  Model '{model_id}' reasoning type unknown, attempting with effort-based")
+                reasoning_params = {
+                    "effort": reasoning_effort
+                }
+        elif is_openrouter and not should_enable_reasoning and supports_reasoning:
+            # Explicitly disable reasoning for models that support it (e.g., deepseek)
+            reasoning_params = {
+                "enabled": False
             }
 
         # Make API call
         try:
-            response = client.chat.completions.create(**api_params)
+            # Use direct HTTP request for OpenRouter reasoning mode
+            # (OpenAI SDK doesn't support custom top-level parameters like 'reasoning')
+            if is_openrouter and reasoning_params is not None:
+                # Get API key
+                openrouter_key = api_key if api_key else os.environ.get('OPENROUTER_API_KEY')
+                if not openrouter_key:
+                    raise ValueError("OPENROUTER_API_KEY not found")
+
+                # Extract response_format if present
+                response_format_param = api_params.get("response_format")
+
+                # Make direct HTTP request
+                response_json = _make_openrouter_http_request(
+                    api_key=openrouter_key,
+                    model_id=model_id,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    response_format=response_format_param,
+                    reasoning_params=reasoning_params
+                )
+
+                # Convert to object-like structure for compatibility
+                class Response:
+                    def __init__(self, data):
+                        self.choices = [type('obj', (object,), {
+                            'message': type('obj', (object,), {
+                                'content': data['choices'][0]['message']['content']
+                            })()
+                        })()]
+                        self.usage = type('obj', (object,), {
+                            'prompt_tokens': data['usage']['prompt_tokens'],
+                            'completion_tokens': data['usage']['completion_tokens']
+                        })()
+
+                response = Response(response_json)
+            else:
+                # Standard OpenAI SDK call (no reasoning)
+                response = client.chat.completions.create(**api_params)
 
             # Extract response
             content = response.choices[0].message.content
