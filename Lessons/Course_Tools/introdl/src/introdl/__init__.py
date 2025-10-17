@@ -61,8 +61,49 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.28"
+__version__ = "1.6.37"
 # Version history:
+# 1.6.37 - Enforced min 1024 tokens for budget-based reasoning (Claude, Gemini)
+#          - llm_generate() now automatically enforces max_tokens >= 1024 for budget-based reasoning
+#          - Shows informational message when adjusting max_tokens for budget-based models
+#          - Note: gpt-oss-120b and gpt-oss-20b remain excluded (only work with reasoning enabled)
+# 1.6.36 - CRITICAL FIX: Reasoning mode now uses direct HTTP requests (bypasses OpenAI SDK)
+#          - Fixed empty response bug by using requests library instead of OpenAI SDK
+#          - OpenAI SDK doesn't support custom top-level params like 'reasoning'
+#          - Direct HTTP POST sends reasoning params at top level per OpenRouter API spec
+#          - Effort-based: {"reasoning": {"effort": "high"}} for o3, DeepSeek, Llama-4
+#          - Budget-based: {"reasoning": {"max_tokens": 2000}} for Claude, Gemini
+# 1.6.35 - BROKEN: Attempted to fix reasoning with top-level params via OpenAI SDK (doesn't work)
+# 1.6.34 - Added reasoning support for Gemini models (gemini-flash-lite, gemini-flash)
+#          - Per OpenRouter docs, Gemini thinking models support max_tokens for reasoning budget
+#          - Both use budget-based reasoning (same as Claude)
+#          - Models with reasoning support: claude-haiku-4.5, gemini-flash-lite, gemini-flash, deepseek-v3.1, llama-4-maverick
+# 1.6.33 - Removed gpt-oss-20b and gpt-oss-120b from curated model list
+#          - Testing revealed both models return empty responses for complex reasoning tasks
+#          - Models unreliable and unsuitable for student use (generating tokens but returning empty strings)
+#          - Curated list now contains 13 reliable models
+# 1.6.32 - Fixed reasoning support configuration for gpt-oss models based on testing
+#          - Updated gpt-oss-20b and gpt-oss-120b to supports_reasoning: false (no observed effect)
+#          - Models with verified reasoning support: claude-haiku-4.5, deepseek-v3.1, llama-4-maverick
+#          - Test results documented in Developer/Notes/Reasoning_Mode_Test_Results.md
+# 1.6.31 - Added reasoning configuration to OpenRouter model metadata
+#          - Updated claude-haiku to anthropic/claude-haiku-4.5 with extended thinking mode
+#          - Added reasoning_support field to all models in openrouter_models.json
+#          - Models now specify: supports_reasoning, reasoning_type (effort/budget), default_reasoning_enabled
+#          - llm_generate() automatically disables reasoning for all models by default (cost optimization)
+#          - Explicit enable_reasoning=True required to activate reasoning modes
+#          - Initial models with reasoning support: claude-haiku-4.5, deepseek-v3.1, llama-4-maverick, gpt-oss-120b, gpt-oss-20b
+# 1.6.30 - Added reasoning/thinking parameter support to llm_generate()
+#          - New parameters: enable_reasoning (bool), reasoning_effort (str), reasoning_budget (int)
+#          - Provider-aware implementation: effort levels for OpenAI/DeepSeek, token budgets for Anthropic/Gemini
+#          - Enables extended thinking for Claude, Gemini, and O3 models on OpenRouter
+#          - Automatic provider detection from model_id, graceful degradation for unsupported providers
+#          - Maintains backward compatibility: reasoning disabled by default
+# 1.6.29 - Added GPU warning for Lessons 07-12 (except 09) and Homeworks 07-12 (except 09)
+#          - config_paths_keys() detects Lesson/Homework folders 07-12 (excluding 09) and checks for CUDA
+#          - Warns students to use Compute Server for HuggingFace pipeline commands if no GPU detected
+#          - Clarifies that llm_generate does not need Compute Server (API calls)
+#          - Helps students avoid slow inference and potential issues on CPU-only CoCalc home server
 # 1.6.28 - Fixed "I/O operation on closed file" logging errors in Jupyter/CoCalc
 #          - Added fix_logging_handlers() utility function to clean up closed logging handlers
 #          - config_paths_keys() now automatically fixes logging handlers on startup
