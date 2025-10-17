@@ -657,6 +657,31 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         # Silently fail if logging handler fix doesn't work
         pass
 
+    # -- Warn if in Lessons 07-12 (except 09) or Homeworks 07-12 (except 09) without CUDA --
+    try:
+        import torch
+        cwd = Path.cwd()
+        parent_dir = cwd.name
+
+        # Check if we're in Lesson_07-12 (except 09) or Homework_07-12 (except 09)
+        lesson_pattern = parent_dir.startswith("Lesson_") or parent_dir.startswith("Homework_")
+        if lesson_pattern:
+            # Extract number from folder name (e.g., "Lesson_08_Text_Classification" -> "08")
+            parts = parent_dir.split("_")
+            if len(parts) >= 2 and parts[1].isdigit():
+                lesson_num = int(parts[1])
+                # Check if it's lessons 7-12 (except 9)
+                if 7 <= lesson_num <= 12 and lesson_num != 9:
+                    if not torch.cuda.is_available():
+                        print("\n⚠️  Warning: GPU not detected")
+                        print("   It's recommended to run HuggingFace `pipeline` commands on a Compute Server.")
+                        print("   Pipeline models can be slow without GPU acceleration, and may cause issues")
+                        print("   in regular CoCalc.")
+                        print("   If you're just using `llm_generate`, that does not need a Compute Server.\n")
+    except Exception:
+        # Silently fail if warning check doesn't work
+        pass
+
     # Print version (condensed)
     try:
         import introdl

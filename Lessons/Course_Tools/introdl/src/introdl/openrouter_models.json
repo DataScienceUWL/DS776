@@ -1,18 +1,23 @@
 {
   "models": {
     "claude-haiku": {
-      "id": "anthropic/claude-3.5-haiku",
+      "id": "anthropic/claude-haiku-4.5",
       "provider": "anthropic",
       "parameters": "~30-50B",
       "size": "~30-50B",
       "architecture": "dense",
-      "release_date": "2024-10-22",
-      "notes": "Commercial model, size estimated",
+      "release_date": "2025-10-17",
+      "notes": "Commercial model, size estimated, extended thinking mode available",
       "open_weights": false,
       "json_support": {
         "json_object": true,
-        "json_schema": false,
-        "strict_schema": false
+        "json_schema": true,
+        "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": true,
+        "reasoning_type": "budget",
+        "default_reasoning_enabled": false
       }
     },
     "gemini-flash-lite": {
@@ -22,12 +27,17 @@
       "size": "~5B",
       "architecture": "dense",
       "release_date": "2025-09-25",
-      "notes": "Commercial model, size estimated",
+      "notes": "Commercial model, size estimated, supports thinking mode via max_tokens",
       "open_weights": false,
       "json_support": {
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": true,
+        "reasoning_type": "budget",
+        "default_reasoning_enabled": false
       }
     },
     "gemini-flash": {
@@ -37,12 +47,17 @@
       "size": "~20B",
       "architecture": "dense",
       "release_date": "2025-04-17",
-      "notes": "Commercial model, size estimated",
+      "notes": "Commercial model, size estimated, supports thinking mode via max_tokens",
       "open_weights": false,
       "json_support": {
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": true,
+        "reasoning_type": "budget",
+        "default_reasoning_enabled": false
       }
     },
     "gpt-4o-mini": {
@@ -58,6 +73,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": false
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "llama-3.2-1b": {
@@ -73,6 +93,11 @@
         "json_object": true,
         "json_schema": false,
         "strict_schema": false
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "llama-3.2-3b": {
@@ -88,6 +113,11 @@
         "json_object": true,
         "json_schema": false,
         "strict_schema": false
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "llama-3.3-70b": {
@@ -103,6 +133,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "llama-4-maverick": {
@@ -112,12 +147,17 @@
       "size": "17B×128E",
       "architecture": "MoE",
       "release_date": "2025-04-05",
-      "notes": "Open-weight model, Llama 4 experimental release with MoE architecture",
+      "notes": "Open-weight model, Llama 4 experimental release with MoE architecture, optional reasoning activation",
       "open_weights": true,
       "json_support": {
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": true,
+        "reasoning_type": "effort",
+        "default_reasoning_enabled": false
       }
     },
     "gemma-3-12b": {
@@ -133,6 +173,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "gemma-3-27b": {
@@ -148,6 +193,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "mistral-nemo": {
@@ -163,6 +213,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "mistral-medium": {
@@ -178,6 +233,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "qwen3-32b": {
@@ -193,6 +253,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
+      },
+      "reasoning_support": {
+        "supports_reasoning": false,
+        "reasoning_type": null,
+        "default_reasoning_enabled": false
       }
     },
     "deepseek-v3.1": {
@@ -208,36 +273,11 @@
         "json_object": true,
         "json_schema": true,
         "strict_schema": true
-      }
-    },
-    "gpt-oss-20b": {
-      "id": "openai/gpt-oss-20b",
-      "provider": "openai",
-      "parameters": "21B total, 3.6B active",
-      "size": "3.6B×6E",
-      "architecture": "MoE (4-bit quantized MXFP4)",
-      "release_date": "2025-08-05",
-      "notes": "Open-weight model, Apache 2.0 license, runs on 16GB memory",
-      "open_weights": true,
-      "json_support": {
-        "json_object": true,
-        "json_schema": false,
-        "strict_schema": false
-      }
-    },
-    "gpt-oss-120b": {
-      "id": "openai/gpt-oss-120b",
-      "provider": "openai",
-      "parameters": "117B total, 5.1B active",
-      "size": "5.1B×23E",
-      "architecture": "MoE (4-bit quantized MXFP4)",
-      "release_date": "2025-08-05",
-      "notes": "Open-weight model, Apache 2.0 license, competitive with o4-mini, runs on 80GB GPU, JSON support unreliable",
-      "open_weights": true,
-      "json_support": {
-        "json_object": true,
-        "json_schema": false,
-        "strict_schema": false
+      },
+      "reasoning_support": {
+        "supports_reasoning": true,
+        "reasoning_type": "effort",
+        "default_reasoning_enabled": false
       }
     }
   },
@@ -248,6 +288,6 @@
     0.9
   ],
   "student_credit_limit": 15.0,
-  "description": "OpenRouter model configurations for DS776 NLP lessons. Using commercial models (Claude, Gemini, GPT) and affordable open-weight models (Meta Llama, Google Gemma, Mistral, Qwen, Deepseek). Includes model metadata, JSON capability data, release dates, and open-weights status.",
-  "last_updated": "2025-10-09"
+  "description": "OpenRouter model configurations for DS776 NLP lessons. Using commercial models (Claude, Gemini, GPT) and affordable open-weight models (Meta Llama, Google Gemma, Mistral, Qwen, Deepseek). Includes model metadata, JSON capability data, release dates, open-weights status, and reasoning configuration.",
+  "last_updated": "2025-10-17"
 }
