@@ -61,8 +61,44 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.37"
+__version__ = "1.6.46"
 # Version history:
+# 1.6.46 - Enhanced rich display to mimic actual training table format
+#          - _format_detailed_metrics_display() now returns pandas DataFrame (not string)
+#          - Table shows: Epoch | Training Loss | Validation Loss | LOC | MISC | ORG | PER | Overall metrics
+#          - Entity columns display formatted nested dicts matching live training display
+#          - Training Loss column included (will be empty for pretend_train=True due to HF limitation)
+#          - Maintains backward compatibility with text classification tasks
+# 1.6.45 - MAJOR: Implemented rich training display recording and playback for NER models
+#          - Added _extract_detailed_metrics() to capture complete nested dictionaries from seqeval
+#          - Saves training_history_detailed.json with per-entity metrics (LOC, MISC, ORG, PER)
+#          - Added _format_detailed_metrics_display() for rich per-entity metric formatting
+#          - Enhanced _simulate_training_with_metrics() to show rich display when available
+#          - Automatic detection: uses rich display for nested metrics, simple display for flat metrics
+#          - Backward compatible: text classification tasks (Lesson 8) unchanged
+#          - Works with local models and HuggingFace Hub models
+#          - Students training their own models automatically get rich playback
+# 1.6.44 - Enhanced _extract_metrics_dataframe() to drop entirely null columns
+#          - Removes confusing empty columns (eval_accuracy, eval_f1, train_loss when not logged)
+#          - Only shows metrics that actually have values
+#          - Cleaner display for both classification and NER tasks
+# 1.6.43 - ACTUALLY fixed TrainerWithPretend._extract_metrics_dataframe() to dynamically capture all metrics
+#          - Changed from hardcoded metric keys to dynamic extraction of ALL eval_* keys
+#          - Properly displays NER-specific metrics (eval_overall_f1, eval_overall_precision, etc.)
+#          - Fixes missing metrics when pretend_train=True for NER tasks
+# 1.6.42 - Version increment without actual code fix (changelog only)
+# 1.6.41 - Fixed TrainerWithPretend to correctly detect model type from config architecture
+#          - Reads config.architectures[0] to determine if TokenClassification or SequenceClassification
+#          - Fixes "unexpected keyword argument 'labels'" error for NER models
+# 1.6.40 - Fixed TrainerWithPretend to use AutoModel instead of AutoModelForSequenceClassification
+#          - Now automatically detects correct model class (TokenClassification, SequenceClassification, etc.)
+#          - Fixes batch size mismatch error when loading NER models with pretend_train=True
+# 1.6.39 - Re-applied NER metrics fix after file recovery from backup
+#          - Same fix as 1.6.38 (eval_overall_f1 check) was lost during Google Drive recovery
+# 1.6.38 - Fixed TrainerWithPretend metrics display for NER tasks
+#          - _simulate_training_with_metrics now checks for eval_overall_f1 (NER) before eval_accuracy
+#          - Handles NER models that have eval_accuracy column but all values are NaN
+#          - Displays "Overall F1" for NER tasks, "Accuracy" for classification tasks
 # 1.6.37 - Enforced min 1024 tokens for budget-based reasoning (Claude, Gemini)
 #          - llm_generate() now automatically enforces max_tokens >= 1024 for budget-based reasoning
 #          - Shows informational message when adjusting max_tokens for budget-based models

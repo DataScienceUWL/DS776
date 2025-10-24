@@ -1539,6 +1539,7 @@ if _HAS_TRANSFORMERS:
         def __init__(self, *args, pretend_train=False, **kwargs):
             self.pretend_train = pretend_train
             self._training_history = None
+            self._detailed_training_history = None  # For rich metrics display (NER, etc.)
             super().__init__(*args, **kwargs)
 
         def train(self, *args, **kwargs):
@@ -1596,11 +1597,23 @@ if _HAS_TRANSFORMERS:
                 print(f"✓ Checking HuggingFace Hub: {hf_repo_id}/{model_name}")
 
                 # Load model from HuggingFace Hub subdirectory
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    hf_repo_id,
-                    subfolder=model_name,  # Model stored in subdirectory
-                    trust_remote_code=False  # Security: don't execute remote code
-                )
+                # Detect model type from config and use appropriate Auto class
+                from transformers import AutoConfig, AutoModelForSequenceClassification, AutoModelForTokenClassification
+                config = AutoConfig.from_pretrained(hf_repo_id, subfolder=model_name)
+
+                # Choose the correct model class based on architecture in config
+                if 'TokenClassification' in config.architectures[0]:
+                    self.model = AutoModelForTokenClassification.from_pretrained(
+                        hf_repo_id,
+                        subfolder=model_name,
+                        trust_remote_code=False
+                    )
+                else:
+                    self.model = AutoModelForSequenceClassification.from_pretrained(
+                        hf_repo_id,
+                        subfolder=model_name,
+                        trust_remote_code=False
+                    )
 
                 # Load training history from HF Hub if available
                 self._training_history = self._load_training_history_from_hub(hf_repo_id, model_name)
@@ -1639,10 +1652,21 @@ if _HAS_TRANSFORMERS:
                     print(f"✓ Loading pre-trained model from: {best_model_dir}")
 
                 # Load model
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    best_model_dir,
-                    local_files_only=True
-                )
+                # Detect model type from config and use appropriate Auto class
+                from transformers import AutoConfig, AutoModelForSequenceClassification, AutoModelForTokenClassification
+                config = AutoConfig.from_pretrained(best_model_dir, local_files_only=True)
+
+                # Choose the correct model class based on architecture in config
+                if 'TokenClassification' in config.architectures[0]:
+                    self.model = AutoModelForTokenClassification.from_pretrained(
+                        best_model_dir,
+                        local_files_only=True
+                    )
+                else:
+                    self.model = AutoModelForSequenceClassification.from_pretrained(
+                        best_model_dir,
+                        local_files_only=True
+                    )
 
                 # Load training history
                 self._training_history = self._load_training_history(best_model_dir)
@@ -1686,12 +1710,29 @@ if _HAS_TRANSFORMERS:
             # Extract metrics from HuggingFace's log_history
             history_df = self._extract_metrics_dataframe()
 
-            # Save as JSON for easy loading
+            # Save simple format (backward compatible)
             history_file = best_model_dir / 'training_history.json'
             history_df.to_json(history_file, orient='records', indent=2)
 
+            # Check if we have detailed metrics with nested dictionaries
+            detailed_metrics = self._extract_detailed_metrics()
+            if detailed_metrics:
+                # Save detailed format for rich display
+                import json
+                detailed_file = best_model_dir / 'training_history_detailed.json'
+                with open(detailed_file, 'w') as f:
+                    json.dump(detailed_metrics, f, indent=2)
+
         def _load_training_history(self, model_dir):
             """Load training metrics from saved file."""
+            # Try loading detailed metrics first (for rich display)
+            import json
+            detailed_file = model_dir / 'training_history_detailed.json'
+            if detailed_file.exists():
+                with open(detailed_file, 'r') as f:
+                    self._detailed_training_history = json.load(f)
+
+            # Always load simple format for backward compatibility
             history_file = model_dir / 'training_history.json'
             if history_file.exists():
                 return pd.read_json(history_file)
@@ -1710,6 +1751,20 @@ if _HAS_TRANSFORMERS:
             """
             try:
                 from huggingface_hub import hf_hub_download
+                import json
+
+                # Try loading detailed metrics first (for rich display)
+                try:
+                    detailed_file = hf_hub_download(
+                        repo_id=repo_id,
+                        filename=f'{model_name}/training_history_detailed.json',
+                        repo_type='model'
+                    )
+                    with open(detailed_file, 'r') as f:
+                        self._detailed_training_history = json.load(f)
+                except Exception:
+                    # Detailed history not available (optional)
+                    pass
 
                 # Download training_history.json from model's subdirectory
                 # Path in repo: {model_name}/training_history.json
@@ -1750,24 +1805,142 @@ if _HAS_TRANSFORMERS:
                         train_loss = train_log.get('loss')
                         break
 
+                # Start with epoch and train_loss
                 row = {
                     'epoch': epoch,
                     'train_loss': train_loss,
-                    'eval_loss': eval_log.get('eval_loss'),
-                    'eval_accuracy': eval_log.get('eval_accuracy'),
-                    'eval_f1': eval_log.get('eval_f1'),
-                    'eval_precision': eval_log.get('eval_precision'),
-                    'eval_recall': eval_log.get('eval_recall'),
                 }
+
+                # Dynamically add all eval_* metrics from this log
+                # This ensures we capture custom metrics like eval_overall_f1, eval_overall_precision, etc.
+                for key, value in eval_log.items():
+                    if key.startswith('eval_'):
+                        row[key] = value
+
                 data.append(row)
 
             df = pd.DataFrame(data)
+
+            # Drop columns that are entirely null/None (except epoch which we always keep)
+            # This removes unused metric columns like eval_accuracy, eval_f1 when doing NER
+            cols_to_keep = ['epoch']  # Always keep epoch
+            for col in df.columns:
+                if col not in cols_to_keep and df[col].notna().any():
+                    cols_to_keep.append(col)
+            df = df[cols_to_keep]
 
             # Round to 4 decimal places for readability
             numeric_cols = df.select_dtypes(include=['float64']).columns
             df[numeric_cols] = df[numeric_cols].round(4)
 
             return df
+
+        def _extract_detailed_metrics(self):
+            """
+            Extract detailed metrics including nested dictionaries (e.g., per-entity NER metrics).
+
+            Returns list of dicts with structure:
+                [{"epoch": 1, "train_loss": None, "eval_metrics": {complete_dict_from_compute_metrics}}, ...]
+
+            Returns None if no nested dictionaries found (simple classification metrics only).
+            """
+            logs = self.state.log_history
+
+            # Separate training and eval logs
+            train_logs = [log for log in logs if 'loss' in log and 'epoch' in log]
+            eval_logs = [log for log in logs if 'eval_loss' in log]
+
+            # Check if any eval log contains nested dictionaries (like per-entity metrics)
+            has_nested_metrics = False
+            for eval_log in eval_logs:
+                for key, value in eval_log.items():
+                    if isinstance(value, dict):
+                        has_nested_metrics = True
+                        break
+                if has_nested_metrics:
+                    break
+
+            # If no nested metrics, return None (use simple format)
+            if not has_nested_metrics:
+                return None
+
+            # Build detailed data with complete nested structures
+            data = []
+            for eval_log in eval_logs:
+                epoch = eval_log.get('epoch')
+
+                # Find corresponding training loss
+                train_loss = None
+                for train_log in train_logs:
+                    if train_log.get('epoch') == epoch:
+                        train_loss = train_log.get('loss')
+                        break
+
+                # Collect all eval metrics (including nested dicts)
+                eval_metrics = {}
+                for key, value in eval_log.items():
+                    if key.startswith('eval_'):
+                        eval_metrics[key] = value
+
+                data.append({
+                    'epoch': epoch,
+                    'train_loss': train_loss,
+                    'eval_metrics': eval_metrics
+                })
+
+            return data
+
+        def _format_detailed_metrics_display(self):
+            """
+            Format detailed metrics as DataFrame mimicking actual training display.
+
+            Returns pandas DataFrame showing per-entity metrics in table format.
+            """
+            if not self._detailed_training_history:
+                return None
+
+            import pandas as pd
+
+            # Build rows for the DataFrame
+            rows = []
+            for epoch_data in self._detailed_training_history:
+                epoch = int(epoch_data['epoch'])
+                train_loss = epoch_data.get('train_loss')
+                eval_metrics = epoch_data['eval_metrics']
+
+                row = {
+                    'Epoch': epoch,
+                    'Training Loss': train_loss if train_loss is not None else '',
+                    'Validation Loss': eval_metrics.get('eval_loss', '')
+                }
+
+                # Add entity columns (LOC, MISC, ORG, PER, etc.)
+                for key, value in sorted(eval_metrics.items()):
+                    if isinstance(value, dict):
+                        # Format entity metrics as a compact dict string
+                        entity_name = key.replace('eval_', '')
+                        # Create formatted string matching live training display
+                        formatted = (
+                            f"{{'precision': {value.get('precision', 0):.6f}, "
+                            f"'recall': {value.get('recall', 0):.6f}, "
+                            f"'f1': {value.get('f1', 0):.6f}, "
+                            f"'number': {int(value.get('number', 0))}}}"
+                        )
+                        row[entity_name.capitalize()] = formatted
+
+                # Add overall metrics
+                if 'eval_overall_precision' in eval_metrics:
+                    row['Overall Precision'] = f"{eval_metrics['eval_overall_precision']:.6f}"
+                if 'eval_overall_recall' in eval_metrics:
+                    row['Overall Recall'] = f"{eval_metrics['eval_overall_recall']:.6f}"
+                if 'eval_overall_f1' in eval_metrics:
+                    row['Overall F1'] = f"{eval_metrics['eval_overall_f1']:.6f}"
+                if 'eval_overall_accuracy' in eval_metrics:
+                    row['Overall Accuracy'] = f"{eval_metrics['eval_overall_accuracy']:.6f}"
+
+                rows.append(row)
+
+            return pd.DataFrame(rows)
 
         def _simulate_training_with_metrics(self):
             """Display training metrics when loading pre-trained model."""
@@ -1783,15 +1956,36 @@ if _HAS_TRANSFORMERS:
 
             # Display training history
             if self._training_history is not None:
-                print("\n📊 Training History:")
-                try:
-                    from IPython.display import display
-                    display(self._training_history)
-                except ImportError:
-                    print(self._training_history.to_string(index=False))
+                # Check if we have detailed metrics for rich display
+                detailed_display = self._format_detailed_metrics_display()
+
+                if detailed_display is not None:
+                    # Rich display with per-entity metrics (NER tasks) - returns DataFrame
+                    print("\n📊 Training History:")
+                    try:
+                        from IPython.display import display
+                        display(detailed_display)
+                    except ImportError:
+                        print(detailed_display.to_string(index=False))
+                else:
+                    # Simple display (classification tasks or older models)
+                    print("\n📊 Training History:")
+                    try:
+                        from IPython.display import display
+                        display(self._training_history)
+                    except ImportError:
+                        print(self._training_history.to_string(index=False))
 
                 # Summary of best performance
-                if 'eval_accuracy' in self._training_history.columns:
+                # Check for NER metrics first (eval_overall_f1), then classification metrics (eval_accuracy)
+                if 'eval_overall_f1' in self._training_history.columns:
+                    # NER task - use eval_overall_f1
+                    best_idx = self._training_history['eval_overall_f1'].idxmax()
+                    best_epoch = self._training_history.loc[best_idx, 'epoch']
+                    best_f1 = self._training_history.loc[best_idx, 'eval_overall_f1']
+                    print(f"\n✓ Best model: Epoch {best_epoch:.0f} | Overall F1: {best_f1:.4f}")
+                elif 'eval_accuracy' in self._training_history.columns and not self._training_history['eval_accuracy'].isna().all():
+                    # Classification task - use eval_accuracy (only if not all NaN)
                     best_idx = self._training_history['eval_accuracy'].idxmax()
                     best_epoch = self._training_history.loc[best_idx, 'epoch']
                     best_acc = self._training_history.loc[best_idx, 'eval_accuracy']
