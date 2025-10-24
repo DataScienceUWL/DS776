@@ -458,6 +458,181 @@ def extract_gold_entities(example, labels_list):
 
     return entities
 
+def extract_entities_dict(pipeline_results, label_list):
+    """
+    Convert pipeline results to dictionary (or list of dictionaries) organized by entity type.
+
+    This function works with HuggingFace token classification pipelines to extract named entities
+    and organize them by type (PER, ORG, LOC, MISC). It properly merges multi-token entities
+    (e.g., "Elon Musk") by combining consecutive B- and I- tags.
+
+    Args:
+        pipeline_results: Either:
+            - Single result: List of dicts from pipeline (one text)
+            - Batch results: List of lists of dicts from pipeline (multiple texts)
+        label_list: List of BIO tags (e.g., ['O', 'B-PER', 'I-PER', 'B-LOC', ...])
+
+    Returns:
+        If single text input:
+            dict: {'PER': ['Elon Musk', 'Sam Altman'], 'ORG': ['OpenAI'], ...}
+        If batch input:
+            list of dict: [{'PER': [...], 'ORG': [...]}, {'PER': [...], 'LOC': [...]}, ...]
+
+    Example:
+        >>> # Single text
+        >>> results = pipeline("Elon Musk founded OpenAI.")
+        >>> extract_entities_dict(results, BIO_tags_list)
+        {'PER': ['Elon Musk'], 'ORG': ['OpenAI'], 'LOC': [], 'MISC': []}
+
+        >>> # Batch of texts
+        >>> results = pipeline(["Elon Musk lives in Texas.", "OpenAI is in San Francisco."])
+        >>> extract_entities_dict(results, BIO_tags_list)
+        [{'PER': ['Elon Musk'], 'LOC': ['Texas'], ...},
+         {'ORG': ['OpenAI'], 'LOC': ['San Francisco'], ...}]
+    """
+
+    # Check if input is batched (list of lists) or single (list of dicts)
+    # Batched: [[{result1}, {result2}], [{result3}, {result4}]]
+    # Single:  [{result1}, {result2}, {result3}]
+    is_batched = isinstance(pipeline_results[0], list) if pipeline_results else False
+
+    # If batched, recursively process each text's results
+    if is_batched:
+        return [extract_entities_dict(single_result, label_list)
+                for single_result in pipeline_results]
+
+    # ============================================================================
+    # Single text processing starts here
+    # ============================================================================
+
+    # Step 1: Initialize the output dictionary with all entity types
+    # This ensures every entity type has a key, even if no entities are found
+    entities = {}
+    for label in label_list:
+        if label != 'O':  # Skip 'O' which means "Outside" (no entity)
+            # Extract entity type from BIO tag: 'B-PER' -> 'PER'
+            entity_type = label.split('-')[-1]
+            if entity_type not in entities:
+                entities[entity_type] = []
+
+    # Step 2: Track the current entity being built across multiple tokens
+    # Example: "Elon" (B-PER) + "Musk" (I-PER) = "Elon Musk" (complete entity)
+    current_entity_tokens = []  # Accumulates tokens for current entity
+    current_entity_type = None  # Tracks which entity type we're building
+
+    # Step 3: Process each token from the pipeline results sequentially
+    # The pipeline returns results in text order, which is crucial for merging
+    for result in pipeline_results:
+        # Pipeline outputs entity_group as 'LABEL_X' where X is the label index
+        # Example: 'LABEL_3' means index 3 in label_list
+        entity_label = result['entity_group']
+
+        # Convert 'LABEL_X' to the actual BIO tag string
+        if entity_label.startswith('LABEL_'):
+            label_idx = int(entity_label.replace('LABEL_', ''))
+
+            # Look up the BIO tag (e.g., 'B-PER', 'I-LOC', 'O')
+            if label_idx < len(label_list):
+                bio_label = label_list[label_idx]
+
+                # ----------------------------------------------------------------
+                # Handle 'O' (Outside) tags - marks end of entity
+                # ----------------------------------------------------------------
+                if bio_label == 'O':
+                    # If we were building an entity, save it now
+                    if current_entity_tokens:
+                        entity_text = ' '.join(current_entity_tokens).strip()
+                        # Avoid adding duplicates or empty strings
+                        if entity_text and entity_text not in entities[current_entity_type]:
+                            entities[current_entity_type].append(entity_text)
+                        # Reset state for next entity
+                        current_entity_tokens = []
+                        current_entity_type = None
+                    continue  # Move to next token
+
+                # ----------------------------------------------------------------
+                # Extract entity information from BIO tag
+                # ----------------------------------------------------------------
+                entity_type = bio_label.split('-')[-1]  # 'B-PER' -> 'PER'
+                entity_text = result['word'].strip()    # Token text
+
+                # ----------------------------------------------------------------
+                # Handle 'B-' (Beginning) tags - starts new entity
+                # ----------------------------------------------------------------
+                if bio_label.startswith('B-'):
+                    # Save the previous entity if we were building one
+                    if current_entity_tokens:
+                        complete_entity = ' '.join(current_entity_tokens).strip()
+                        if complete_entity and complete_entity not in entities[current_entity_type]:
+                            entities[current_entity_type].append(complete_entity)
+
+                    # Start building a new entity
+                    current_entity_tokens = [entity_text]
+                    current_entity_type = entity_type
+
+                # ----------------------------------------------------------------
+                # Handle 'I-' (Inside) tags - continues current entity
+                # ----------------------------------------------------------------
+                elif bio_label.startswith('I-'):
+                    # Check if this I- tag matches the current entity type
+                    if current_entity_type == entity_type:
+                        # Add token to current entity
+                        # Example: current=['Elon'], adding 'Musk' -> ['Elon', 'Musk']
+                        current_entity_tokens.append(entity_text)
+                    else:
+                        # Mismatched I- tag (tagging error or special case)
+                        # Treat it as starting a new entity
+                        if current_entity_tokens:
+                            complete_entity = ' '.join(current_entity_tokens).strip()
+                            if complete_entity and complete_entity not in entities[current_entity_type]:
+                                entities[current_entity_type].append(complete_entity)
+                        # Start new entity with this token
+                        current_entity_tokens = [entity_text]
+                        current_entity_type = entity_type
+
+    # Step 4: Don't forget the last entity if text ends while building one
+    # Example: "... lives in New York" - need to save "New York" at the end
+    if current_entity_tokens:
+        complete_entity = ' '.join(current_entity_tokens).strip()
+        if complete_entity and complete_entity not in entities[current_entity_type]:
+            entities[current_entity_type].append(complete_entity)
+
+    return entities
+
+def llm_ner_extractor(model_name,
+                      texts,
+                      system_prompt,
+                      prompt_template,
+                      temperature=0):
+    """
+    Extract named entities using a Large Language Model (LLM) in zero-shot fashion.
+
+    Args:
+        model_name (str): Name of the LLM model to use (e.g., 'gemini-flash-lite').
+        texts (list of str): List of input texts to process.
+        system_prompt (str): System prompt guiding the LLM behavior.
+        prompt_template (str): Template to construct the user prompt for each text.
+        temperature (float, optional): Temperature for generation (0 = deterministic). Defaults to 0.
+
+    Returns:
+        list of dict: List of JSON objects containing extracted entities for each input text.
+    """
+    from introdl import llm_generate
+
+    # Step 1: Create user prompts by formatting the prompt template with each input text.
+    # This ensures that each text is passed to the LLM with the same structure.
+    user_prompts = [prompt_template.format(text=text) for text in texts]
+
+    # Step 2: Generate json outputs from the LLM using the provided model name and prompts.
+    # The `llm_generate` function sends the prompts to the LLM and retrieves the responses.
+    json_outputs = llm_generate(model_name,
+                               user_prompts,
+                               system_prompt=system_prompt,
+                               mode='json',
+                               temperature=temperature)
+
+    return json_outputs
+
 def evaluate_ner(pred_dicts, gold_dicts, labels=["PER", "LOC", "ORG", "MISC"], threshold=0.9):
     """
     Evaluate named entity recognition (NER) predictions using fuzzy string matching.

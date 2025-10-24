@@ -61,8 +61,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.46"
+__version__ = "1.6.47"
 # Version history:
+# 1.6.47 - Added extract_entities_dict() and llm_ner_extractor() to Lesson_10_Helpers.py
+#          - extract_entities_dict(): Converts pipeline results to entity dict with B-/I- tag merging
+#          - llm_ner_extractor(): LLM-based zero-shot NER extraction with JSON mode
+#          - Both functions support batch processing for efficient NER workflows
 # 1.6.46 - Enhanced rich display to mimic actual training table format
 #          - _format_detailed_metrics_display() now returns pandas DataFrame (not string)
 #          - Table shows: Epoch | Training Loss | Validation Loss | LOC | MISC | ORG | PER | Overall metrics
