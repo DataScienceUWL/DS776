@@ -1127,6 +1127,7 @@ def get_homework_storage_report(current_hw=None):
     - cs_workspace/data/, cs_workspace/downloads/, cs_workspace/models/ (compute servers only)
     - Lesson_XX_Models folders (Lessons 1 to current homework number)
     - Homework_XX_Models folders (Homework 1 to current homework number - 1)
+    - ~/.cache/huggingface/ (HuggingFace Hub cached models and datasets)
 
     Args:
         current_hw (int, optional): Current homework number. If None, auto-detects from Path.cwd().
@@ -1247,6 +1248,15 @@ def get_homework_storage_report(current_hw=None):
                     storage_items.append((hw6_folder / "__YOLO_PT_FILES__", yolo_total_size))
                     total_storage += yolo_total_size
 
+    # 6. Analyze HuggingFace cache (~/.cache/huggingface)
+    hf_cache = Path.home() / ".cache" / "huggingface"
+    if hf_cache.exists():
+        hf_size = get_folder_size(hf_cache)
+        if hf_size > 0:
+            # Add HF cache with special marker
+            storage_items.append((hf_cache, hf_size))
+            total_storage += hf_size
+
     return storage_items, total_storage, current_hw
 
 
@@ -1257,6 +1267,7 @@ def clear_homework_storage(storage_items, dry_run=False):
     This function removes:
     - Contents of workspace subfolders (data/, downloads/, models/)
     - Entire Lesson_XX_Models and Homework_XX_Models folders
+    - Contents of ~/.cache/huggingface/ (HuggingFace Hub cache)
 
     Protected files:
     - home_workspace/api_keys.env (never touched)
@@ -1324,6 +1335,25 @@ def clear_homework_storage(storage_items, dry_run=False):
                     for yolo_file in yolo_files:
                         if yolo_file.exists():
                             yolo_file.unlink()
+
+                cleared_size += size
+                cleared_count += 1
+                print(f"✅ {format_size(size)}")
+                continue
+
+            # Check if this is the HuggingFace cache folder
+            if folder_path.name == "huggingface" and ".cache" in str(folder_path):
+                status = "Would clear" if dry_run else "Clearing"
+                print(f"🗑️ {status} HuggingFace cache (~/.cache/huggingface)... ", end="")
+
+                if not dry_run:
+                    # Remove all contents of HuggingFace cache
+                    if folder_path.exists():
+                        for item in folder_path.iterdir():
+                            if item.is_file():
+                                item.unlink()
+                            elif item.is_dir():
+                                shutil.rmtree(item)
 
                 cleared_size += size
                 cleared_count += 1

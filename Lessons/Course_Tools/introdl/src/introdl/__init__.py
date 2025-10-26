@@ -61,8 +61,13 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.48"
+__version__ = "1.6.49"
 # Version history:
+# 1.6.49 - Added HuggingFace cache tracking to storage management utilities
+#          - get_homework_storage_report() now includes ~/.cache/huggingface/ analysis
+#          - clear_homework_storage() now clears HuggingFace Hub cached models and datasets
+#          - Updated Storage_Cleanup_After_HW.ipynb to display and clear HF cache
+#          - Created distribute_storage_notebook.sh for distributing updates to all homework folders
 # 1.6.48 - Enhanced llm_generate() to support max_tokens=None for model-determined output length
 #          - When max_tokens=None, parameter is omitted from API call, allowing model to use default/maximum
 #          - Updated type annotation to Optional[int] and added None handling in docstring
