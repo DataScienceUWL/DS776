@@ -60,10 +60,23 @@ for hw_folder in "$HOMEWORK_DIR"/Homework_*/; do
         if [ -f "$TARGET_NOTEBOOK" ]; then
             HW_NAME=$(basename "$hw_folder")
 
-            # Copy the source notebook to the homework folder
-            if cp "$SOURCE_NOTEBOOK" "$TARGET_NOTEBOOK"; then
-                echo -e "${GREEN}✅${NC} Updated: $HW_NAME/Storage_Cleanup_After_HW.ipynb"
-                ((UPDATED_COUNT++))
+            # Copy the source notebook to a temp location first
+            TEMP_NOTEBOOK="${TARGET_NOTEBOOK}.tmp"
+            if cp "$SOURCE_NOTEBOOK" "$TEMP_NOTEBOOK"; then
+                # Fix the auto-update path for homework folders
+                # Change: %run ./auto_update_introdl.py
+                # To:     %run ../../Lessons/Course_Tools/auto_update_introdl.py
+                sed -i 's|%run \./auto_update_introdl\.py|%run ../../Lessons/Course_Tools/auto_update_introdl.py|g' "$TEMP_NOTEBOOK"
+
+                # Move temp file to final location
+                if mv "$TEMP_NOTEBOOK" "$TARGET_NOTEBOOK"; then
+                    echo -e "${GREEN}✅${NC} Updated: $HW_NAME/Storage_Cleanup_After_HW.ipynb"
+                    ((UPDATED_COUNT++))
+                else
+                    echo -e "${YELLOW}❌${NC} Failed:  $HW_NAME/Storage_Cleanup_After_HW.ipynb"
+                    ((FAILED_COUNT++))
+                    rm -f "$TEMP_NOTEBOOK"  # Clean up temp file
+                fi
             else
                 echo -e "${YELLOW}❌${NC} Failed:  $HW_NAME/Storage_Cleanup_After_HW.ipynb"
                 ((FAILED_COUNT++))
