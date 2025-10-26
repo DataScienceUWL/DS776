@@ -834,7 +834,7 @@ def llm_generate(
     user_schema: Optional[dict] = None,
     system_prompt: Optional[str] = None,
     temperature: float = 0.7,
-    max_tokens: int = 500,
+    max_tokens: Optional[int] = 500,
     api_key: Optional[str] = None,
     base_url: str = "https://openrouter.ai/api/v1",
     cost_per_m_in: Optional[float] = None,
@@ -863,7 +863,7 @@ def llm_generate(
         user_schema: Optional JSON schema for structured output (mode='json' only)
         system_prompt: Optional system message
         temperature: Sampling temperature (0.0-1.0)
-        max_tokens: Maximum tokens to generate
+        max_tokens: Maximum tokens to generate. If None, uses model's default/maximum output length.
         api_key: API key to use. If None, uses OPENROUTER_API_KEY from environment.
                  For other providers, load keys via config_paths_keys() from
                  ~/home_workspace/api_keys.env and pass as os.environ['PROVIDER_API_KEY']
@@ -1067,9 +1067,12 @@ def llm_generate(
         api_params = {
             "model": model_id,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
+            "temperature": temperature
         }
+
+        # Only include max_tokens if specified (None means use model default)
+        if max_tokens is not None:
+            api_params["max_tokens"] = max_tokens
 
         # Add response format for JSON mode (using model capabilities)
         if mode == 'json':
@@ -1127,13 +1130,24 @@ def llm_generate(
             elif reasoning_type == "budget":
                 # Anthropic (Claude) and Gemini use token budgets
                 # IMPORTANT: Budget-based reasoning requires max_tokens >= 1024
-                budget = reasoning_budget if reasoning_budget is not None else max_tokens
+                # If max_tokens is None, use reasoning_budget or default to 2048
+                if reasoning_budget is not None:
+                    budget = reasoning_budget
+                elif max_tokens is not None:
+                    budget = max_tokens
+                else:
+                    budget = 2048  # Default for budget-based reasoning when max_tokens is None
 
                 # Enforce minimum 1024 tokens for budget-based reasoning
-                if max_tokens < 1024:
+                if max_tokens is not None and max_tokens < 1024:
                     max_tokens = 1024
                     if print_cost:
                         print(f"ℹ️  Budget-based reasoning requires max_tokens >= 1024. Adjusted to {max_tokens}")
+                elif max_tokens is None:
+                    # When max_tokens is None, we need to set it to at least 1024 for reasoning
+                    max_tokens = max(1024, budget)
+                    if print_cost:
+                        print(f"ℹ️  Budget-based reasoning requires max_tokens >= 1024. Set to {max_tokens}")
 
                 reasoning_params = {
                     "max_tokens": max(1024, budget)  # Minimum 1024 tokens for reasoning budget

@@ -61,8 +61,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.47"
+__version__ = "1.6.48"
 # Version history:
+# 1.6.48 - Enhanced llm_generate() to support max_tokens=None for model-determined output length
+#          - When max_tokens=None, parameter is omitted from API call, allowing model to use default/maximum
+#          - Updated type annotation to Optional[int] and added None handling in docstring
+#          - Fixed reasoning mode logic to handle None case (defaults to 2048 for budget-based reasoning)
 # 1.6.47 - Added extract_entities_dict() and llm_ner_extractor() to Lesson_10_Helpers.py
 #          - extract_entities_dict(): Converts pipeline results to entity dict with B-/I- tag merging
 #          - llm_ner_extractor(): LLM-based zero-shot NER extraction with JSON mode
