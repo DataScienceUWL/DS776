@@ -1,16 +1,19 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-28
 
 ---
 
-## 🔥 Current Priority: NLP Lessons 10-12 & Custom GPT Bundle
+## 🔥 Current Priority: NLP Lessons 10 & 12 + Custom GPT Bundle
 
 **Critical Path:**
 1. ✅ **Lessons 7-9 Complete** - Lesson 7, 8, 9 updated and tested
 2. ✅ **Homework 7-8 Complete** - Reading questions + new API
-3. **Next: Lessons 10-12** - Named Entity Recognition, Text Generation, Summarization
-4. **High Priority: Custom GPT Bundle for Lessons 7-12** - Package learning materials
+3. ✅ **Lesson 11 v2 Complete** - Text Generation updated with 2025 content, APIs, 70B models
+4. ✅ **Homework 11 v2 Complete** - Ready for review (solutions & testing needed)
+5. **Next: Lesson 10** - Named Entity Recognition (in progress)
+6. **Then: Lesson 12** - Summarization
+7. **High Priority: Custom GPT Bundle for Lessons 7-12** - Package learning materials
 
 ---
 
@@ -284,12 +287,25 @@ Based on NLPWT Chapter 1: Hello Transformers:
     - [ ] Verify point allocation totals 50 points
   - [ ] Test all notebooks end-to-end
 
-- [ ] **Lesson 11: Text Generation**
-  - Uses transformers directly (AutoModelForCausalLM, AutoTokenizer)
-  - Update imports from introdl.generation (not nlp)
-  - Keep local model examples
-  - Minimal LLM usage - may not need updates
-  - **Note**: Generation typically doesn't use Trainer for fine-tuning, may not need TrainerWithPretend
+- [x] **Lesson 11: Text Generation** ✅ COMPLETE (2025-10-28)
+  - [x] Created Lesson_11_Text_Generation_v2 with updated content
+  - [x] Condensed Section 1 chronology with 2025 developments
+  - [x] Updated Section 2 model table with reasoning models (o3-mini, DeepSeek-R1)
+  - [x] Added Chinese/international models (Qwen 2.5, DeepSeek-V3)
+  - [x] Condensed Section 4 (training pipeline) to high-level overview
+  - [x] Enhanced Section 5 with API content:
+    - Environment variables and API key management
+    - OpenRouter multi-provider access
+    - Building custom API helper functions (complete code example)
+    - LangChain framework mention
+  - [x] Condensed Section 8 (adapting LLMs) to brief overview
+  - [x] Enhanced Section 7 with OpenRouter examples and 70B model demos
+  - [x] Created L11_2_Background_Supplement.ipynb with stubs
+  - [x] Updated L11_0_Overview.ipynb with new learning objectives
+  - [x] Uses transformers directly (AutoModelForCausalLM, AutoTokenizer)
+  - [x] Kept local model examples (3B, 8B, 70B quantized models)
+  - [x] Added substantial API usage section via OpenRouter
+  - **Note**: Generation typically doesn't use Trainer for fine-tuning
 
 - [ ] **Lesson 12: Summarization**
   - [ ] Update to new llm_generate API
@@ -336,11 +352,26 @@ Based on NLPWT Chapter 1: Hello Transformers:
   - [ ] Update reflection to standard format
   - [ ] Test with student perspective
 
-- [ ] **Homework 11**: Text Generation
-  - [ ] Update to new `llm_generate()` API
-  - [ ] Add reading questions from NLPWT Chapter 5
-  - [ ] Update reflection to standard format
-  - [ ] Test with student perspective
+- [x] **Homework 11**: Text Generation ✅ COMPLETE (2025-10-28)
+  - [x] Created Homework_11_v2 with complete assignment
+  - [x] Added 5 reading questions (10 points) from NLPWT Chapter 5:
+    - Autoregressive models and conditional text generation
+    - Log probabilities vs. regular probabilities
+    - Greedy search vs. beam search
+    - Temperature parameter in sampling
+    - Top-k and nucleus sampling methods
+  - [x] Updated to new `llm_generate()` API throughout
+  - [x] Updated reflection to standard format (2 points)
+  - [x] Created 6 technical parts (40 points total):
+    - Part 1: Decoding strategies comparison (10 pts)
+    - Part 2: Building API helper functions (8 pts)
+    - Part 3: Model size comparison (3B vs 8B vs 70B) (8 pts)
+    - Part 4: Creative text generation application (8 pts)
+    - Part 5: Analysis and comparison (4 pts)
+    - Part 6: Reflection (2 pts)
+  - [x] Added Storage_Cleanup.ipynb utility
+  - [ ] **TODO: Create complete solutions notebook**
+  - [ ] **TODO: Test all code end-to-end**
 
 - [ ] **Homework 12**: Summarization
   - [ ] Update to new `llm_generate()` API
@@ -654,17 +685,27 @@ Session 2+ (re-runs):
 4. ✅ introdl package v1.6.37 COMPLETE
 5. ✅ WSL Native Filesystem Migration COMPLETE
 6. ✅ Homework 06 Reflections Summary COMPLETE (2025-10-20)
-7. 🔥 **NEXT: Lesson 10 - Named Entity Recognition**
+7. ✅ Lesson 11 v2 - Text Generation COMPLETE (2025-10-28)
+   - Updated with 2025 models, agentic AI, reasoning models
+   - Added API usage section (OpenRouter, helper functions)
+   - Enhanced with 70B model demonstrations
+   - Created background supplement notebook
+8. ✅ Homework 11 v2 - Text Generation COMPLETE (2025-10-28)
+   - Reading questions from NLPWT Chapter 5
+   - 6 technical parts covering decoding, APIs, model sizes
+   - **TODO: Create solutions notebook**
+   - **TODO: Test all code end-to-end**
+9. 🔥 **NEXT: Lesson 10 - Named Entity Recognition**
    - Update to new llm_generate API
    - Compare specialized NER models vs LLM zero-shot
    - Add TrainerWithPretend if using HuggingFace Trainer
    - Update Homework 10 with reading questions + reflection
-8. 🔥 **HIGH PRIORITY: Custom GPT Bundle for Lessons 7-12**
-   - Review `Developer/Notes/Custom_GPT_Bundle_Plan.md`
-   - Package lesson materials into Custom GPT knowledge base
-   - Test with typical student queries
-9. ⏭️ **THEN: Lessons 11-12**
-   - Lesson 11: Text Generation
-   - Lesson 12: Summarization
-   - Update corresponding homework assignments
+10. 🔥 **HIGH PRIORITY: Custom GPT Bundle for Lessons 7-12**
+    - Review `Developer/Notes/Custom_GPT_Bundle_Plan.md`
+    - Package lesson materials into Custom GPT knowledge base
+    - Test with typical student queries
+11. ⏭️ **THEN: Lesson 12 - Summarization**
+    - Update to new llm_generate API
+    - Compare specialized models vs LLMs
+    - Update corresponding homework assignment
 
