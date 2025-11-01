@@ -61,8 +61,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.49"
+__version__ = "1.6.50"
 # Version history:
+# 1.6.50 - Enhanced pretend_train warning message for better clarity when loading non-introdl checkpoints
+#          - Updated TrainerWithPretend._simulate_training_with_metrics() in nlp.py
+#          - Now provides comprehensive explanation when checkpoint was saved with standard transformers.Trainer
+#          - Confirms model loaded successfully and is ready for use, explains how to get metrics in future
 # 1.6.49 - Added HuggingFace cache tracking to storage management utilities
 #          - get_homework_storage_report() now includes ~/.cache/huggingface/ analysis
 #          - clear_homework_storage() now clears HuggingFace Hub cached models and datasets

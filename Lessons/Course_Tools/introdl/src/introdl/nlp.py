@@ -2005,7 +2005,14 @@ if _HAS_TRANSFORMERS:
                     best_acc = self._training_history.loc[best_idx, 'eval_accuracy']
                     print(f"\n✓ Best model: Epoch {best_epoch:.0f} | Accuracy: {best_acc:.4f}")
             else:
-                print("⚠ No training history found. Model loaded but metrics unavailable.")
+                print("⚠  No training history found.")
+                print("   The model checkpoint was loaded successfully, but training metrics are not available.")
+                print("   This likely means the model was trained with standard transformers.Trainer")
+                print("   instead of introdl.Trainer.")
+                print("\n   To see training metrics with pretend_train=True in future runs:")
+                print("   - Use 'from introdl import Trainer' for training")
+                print("   - This will automatically save training history alongside the model")
+                print("\n✓  Model is ready to use for inference and further training.")
 
         def _create_train_output(self):
             """Create TrainOutput for compatibility."""
