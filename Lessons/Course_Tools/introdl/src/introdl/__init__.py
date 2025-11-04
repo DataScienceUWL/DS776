@@ -61,8 +61,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.51"
+__version__ = "1.6.52"
 # Version history:
+# 1.6.52 - Fixed export_this_to_html() to embed PNG images referenced in HTML <img> tags
+#          - Images are now converted to base64 data URIs and embedded in the HTML
+#          - Fixes issue where PNG files weren't included in exported HTML
+#          - Scans markdown and raw cells for <img src="*.png"> tags
 # 1.6.51 - Added visualize_conversation() function to introdl.nlp for displaying chat conversations
 #          - Supports show_recent_only parameter to display only recent messages (for chatbot demos)
 #          - Color-coded roles (system, user, assistant) with emoji indicators

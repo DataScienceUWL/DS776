@@ -1673,6 +1673,69 @@ def convert_nb_to_html(output_filename="converted.html", notebook_path=None, tem
             if "metadata" in nb and "widgets" in nb["metadata"]:
                 del nb["metadata"]["widgets"]
 
+            # 🖼️ Embed PNG images referenced in HTML tags as base64 data URIs
+            import re
+            import base64
+
+            # Pattern to match img tags with src pointing to local files
+            img_pattern = re.compile(r'<img\s+[^>]*src=["\']([^"\']+\.png)["\']', re.IGNORECASE)
+
+            notebook_dir = notebook_path.parent
+            embedded_count = 0
+
+            for cell in nb.cells:
+                # Check markdown and raw cells for HTML img tags
+                if cell.cell_type in ['markdown', 'raw']:
+                    if 'source' in cell:
+                        # Get cell source as string
+                        if isinstance(cell['source'], list):
+                            source = ''.join(cell['source'])
+                        else:
+                            source = cell['source']
+
+                        # Find all img tags with PNG sources
+                        matches = img_pattern.findall(source)
+
+                        for img_src in matches:
+                            # Resolve the image path relative to notebook directory
+                            img_path = notebook_dir / img_src
+
+                            if img_path.exists() and img_path.is_file():
+                                try:
+                                    # Read image and convert to base64
+                                    with open(img_path, 'rb') as img_file:
+                                        img_data = base64.b64encode(img_file.read()).decode('utf-8')
+
+                                    # Create data URI
+                                    data_uri = f'data:image/png;base64,{img_data}'
+
+                                    # Replace the src attribute in the source
+                                    old_src_pattern = f'src=["\'{img_src}"\']'
+                                    new_src = f'src="{data_uri}"'
+                                    source = re.sub(
+                                        r'src=["\']' + re.escape(img_src) + r'["\']',
+                                        new_src,
+                                        source,
+                                        flags=re.IGNORECASE
+                                    )
+
+                                    embedded_count += 1
+                                    print(f"[INFO] Embedded PNG: {img_src}")
+
+                                except Exception as e:
+                                    print(f"[WARNING] Failed to embed {img_src}: {e}")
+                            else:
+                                print(f"[WARNING] Image not found: {img_src} (looked in {img_path})")
+
+                        # Update cell source
+                        if isinstance(cell['source'], list):
+                            cell['source'] = source.splitlines(keepends=True)
+                        else:
+                            cell['source'] = source
+
+            if embedded_count > 0:
+                print(f"[INFO] Embedded {embedded_count} PNG image(s) as base64 data URIs")
+
             nbformat.write(nb, tmp_path)
         except Exception as e:
             print(f"[WARNING] Failed to clean notebook metadata: {e}")
