@@ -2056,3 +2056,87 @@ else:
         )
 
 
+def visualize_conversation(messages, show_recent_only=False):
+    """
+    Visualize a conversation with chat roles using color-coded markdown.
+
+    Args:
+        messages (list): List of message dictionaries with 'role' and 'content' keys
+        show_recent_only (bool): If True, show only system prompt (first time) and
+                                most recent user/assistant exchange. Default: False
+
+    Example:
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"},
+            {"role": "assistant", "content": "Hi! How can I help?"}
+        ]
+        visualize_conversation(messages, show_recent_only=True)
+    """
+    from IPython.display import display, Markdown
+
+    # If showing recent only, filter messages
+    if show_recent_only:
+        # Keep track of whether system prompt has been shown
+        if not hasattr(visualize_conversation, '_system_shown'):
+            visualize_conversation._system_shown = set()
+
+        # Create a unique key for this conversation (based on system prompt)
+        system_msg = None
+        if messages and messages[0]['role'] == 'system':
+            system_msg = messages[0]
+            system_key = hash(system_msg['content'])
+        else:
+            system_key = None
+
+        # Determine which messages to show
+        if system_key and system_key not in visualize_conversation._system_shown:
+            # First time: show system + recent user/assistant
+            visualize_conversation._system_shown.add(system_key)
+            filtered_messages = []
+            if system_msg:
+                filtered_messages.append(system_msg)
+            # Find last user and assistant messages
+            for msg in reversed(messages):
+                if msg['role'] == 'user':
+                    filtered_messages.insert(1 if system_msg else 0, msg)
+                    break
+            for msg in reversed(messages):
+                if msg['role'] == 'assistant':
+                    filtered_messages.append(msg)
+                    break
+            messages = filtered_messages
+        else:
+            # Subsequent times: show only recent user/assistant
+            filtered_messages = []
+            for msg in reversed(messages):
+                if msg['role'] == 'user':
+                    filtered_messages.insert(0, msg)
+                    break
+            for msg in reversed(messages):
+                if msg['role'] == 'assistant':
+                    filtered_messages.append(msg)
+                    break
+            messages = filtered_messages
+
+    # Create markdown output with color-coded roles
+    markdown_output = ""
+
+    for msg in messages:
+        role = msg['role']
+        content = msg['content']
+
+        if role == 'system':
+            markdown_output += f"**🔧 System:**\n\n"
+            markdown_output += f"> {content}\n\n"
+        elif role == 'user':
+            markdown_output += f"**👤 User:**\n\n{content}\n\n"
+        elif role == 'assistant':
+            markdown_output += f"**🤖 Assistant:**\n\n{content}\n\n"
+
+        markdown_output += "---\n\n"
+
+    # Display as rendered markdown
+    display(Markdown(markdown_output))
+
+

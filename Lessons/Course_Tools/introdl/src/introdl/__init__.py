@@ -61,8 +61,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.50"
+__version__ = "1.6.51"
 # Version history:
+# 1.6.51 - Added visualize_conversation() function to introdl.nlp for displaying chat conversations
+#          - Supports show_recent_only parameter to display only recent messages (for chatbot demos)
+#          - Color-coded roles (system, user, assistant) with emoji indicators
 # 1.6.50 - Enhanced pretend_train warning message for better clarity when loading non-introdl checkpoints
 #          - Updated TrainerWithPretend._simulate_training_with_metrics() in nlp.py
 #          - Now provides comprehensive explanation when checkpoint was saved with standard transformers.Trainer
