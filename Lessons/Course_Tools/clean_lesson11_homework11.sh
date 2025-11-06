@@ -84,8 +84,16 @@ echo -e "${GREEN}Removing files...${NC}"
 # Remove files from Homework/Homework_11
 if [ -d "$HOMEWORK_DIR" ]; then
     echo "Cleaning $HOMEWORK_DIR..."
-    rm -rf "${HOMEWORK_DIR:?}"/*
+    # Use find to delete all contents including hidden files
+    # -mindepth 1 ensures we don't delete the directory itself
+    find "$HOMEWORK_DIR" -mindepth 1 -delete
     echo -e "${GREEN}✓ Homework_11 directory cleaned${NC}"
+
+    # Verify it's empty
+    remaining=$(find "$HOMEWORK_DIR" -mindepth 1 | wc -l)
+    if [ "$remaining" -gt 0 ]; then
+        echo -e "${YELLOW}Warning: $remaining files/directories still remain${NC}"
+    fi
 else
     echo -e "${RED}Warning: $HOMEWORK_DIR not found${NC}"
 fi
@@ -93,8 +101,15 @@ fi
 # Remove files from Lessons/Lesson_11_Text_Generation
 if [ -d "$LESSON_DIR" ]; then
     echo "Cleaning $LESSON_DIR..."
-    rm -rf "${LESSON_DIR:?}"/*
+    # Use find to delete all contents including hidden files
+    find "$LESSON_DIR" -mindepth 1 -delete
     echo -e "${GREEN}✓ Lesson_11_Text_Generation directory cleaned${NC}"
+
+    # Verify it's empty
+    remaining=$(find "$LESSON_DIR" -mindepth 1 | wc -l)
+    if [ "$remaining" -gt 0 ]; then
+        echo -e "${YELLOW}Warning: $remaining files/directories still remain${NC}"
+    fi
 else
     echo -e "${RED}Warning: $LESSON_DIR not found${NC}"
 fi
