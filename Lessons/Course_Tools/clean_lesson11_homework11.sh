@@ -15,12 +15,19 @@ echo -e "${YELLOW}  Clean Lesson 11 and Homework 11 Directories${NC}"
 echo -e "${YELLOW}================================================${NC}"
 echo ""
 
-# Check if we're in a git repository
-if [ ! -d ".git" ]; then
-    echo -e "${RED}Error: Not in a git repository root directory${NC}"
-    echo "Please run this script from the project root (where .git directory is)"
+# Find git root directory
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error: Not in a git repository${NC}"
+    echo "Please run this script from within the git repository"
     exit 1
 fi
+
+# Change to git root directory
+echo "Git root: $GIT_ROOT"
+cd "$GIT_ROOT" || exit 1
+echo ""
 
 # Define directories to clean
 HOMEWORK_DIR="Homework/Homework_11"
