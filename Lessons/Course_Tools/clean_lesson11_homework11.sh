@@ -15,21 +15,38 @@ echo -e "${YELLOW}  Clean Lesson 11 and Homework 11 Directories${NC}"
 echo -e "${YELLOW}================================================${NC}"
 echo ""
 
-# Find git root directory
+# Try to find git root (for instructor environment)
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Error: Not in a git repository${NC}"
-    echo "Please run this script from within the git repository"
-    exit 1
+if [ $? -eq 0 ]; then
+    # In git repository (instructor environment)
+    echo "Git root: $GIT_ROOT"
+    cd "$GIT_ROOT" || exit 1
+    PROJECT_ROOT="$GIT_ROOT"
+else
+    # Not in git repository (student environment)
+    # Look for Lessons and Homework directories
+    if [ -d "$HOME/Lessons" ] && [ -d "$HOME/Homework" ]; then
+        # Student environment - use home directory
+        echo "Student environment detected (no git)"
+        PROJECT_ROOT="$HOME"
+        cd "$PROJECT_ROOT" || exit 1
+    elif [ -d "Lessons" ] && [ -d "Homework" ]; then
+        # Already in project root
+        PROJECT_ROOT="$(pwd)"
+    else
+        echo -e "${RED}Error: Cannot find Lessons and Homework directories${NC}"
+        echo "Please run this script from:"
+        echo "  - Your home directory (if Lessons and Homework are in ~/)"
+        echo "  - The project root directory"
+        exit 1
+    fi
 fi
 
-# Change to git root directory
-echo "Git root: $GIT_ROOT"
-cd "$GIT_ROOT" || exit 1
+echo "Project root: $PROJECT_ROOT"
 echo ""
 
-# Define directories to clean
+# Define directories to clean (relative to project root)
 HOMEWORK_DIR="Homework/Homework_11"
 LESSON_DIR="Lessons/Lesson_11_Text_Generation"
 
