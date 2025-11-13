@@ -1,19 +1,20 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-11-12
 
 ---
 
-## 🔥 Current Priority: NLP Lessons 10 & 12 + Custom GPT Bundle
+## 🔥 Current Priority: Lesson 10 Completion + Custom GPT Bundle
 
 **Critical Path:**
 1. ✅ **Lessons 7-9 Complete** - Lesson 7, 8, 9 updated and tested
 2. ✅ **Homework 7-8 Complete** - Reading questions + new API
 3. ✅ **Lesson 11 v2 Complete** - Text Generation updated with 2025 content, APIs, 70B models
 4. ✅ **Homework 11 v2 Complete** - Ready for review (solutions & testing needed)
-5. **Next: Lesson 10** - Named Entity Recognition (in progress)
-6. **Then: Lesson 12** - Summarization
-7. **High Priority: Custom GPT Bundle for Lessons 7-12** - Package learning materials
+5. ✅ **Lesson 12 Complete** - Summarization updated with auto-update, flat imports, 2025 models
+6. ✅ **Homework 12 Complete** - Reading questions, hint cells, production pipeline task
+7. **Next: Lesson 10** - Named Entity Recognition (helpers + homework updates)
+8. **High Priority: Custom GPT Bundle for Lessons 7-12** - Package learning materials
 
 ---
 
