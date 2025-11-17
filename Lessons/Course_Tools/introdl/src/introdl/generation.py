@@ -406,18 +406,5 @@ def plot_top_k_distribution(model, tokenizer, prompt, top_k=10, plot_type='pdf',
     
     plt.show()
 
-
-def visualize_conversation(conversation):
-    """
-    Display the conversation history using Markdown formatting.
-    """
-    md_output = "# Conversation Flow\n"
-    for message in conversation:
-        if message["role"] == "system":
-            md_output += f"### **System:** {message['content']}\n\n"
-        elif message["role"] == "user":
-            md_output += f"**User:** {message['content']}\n\n"
-        elif message["role"] == "assistant":
-            md_output += f"**Assistant:** {message['content']}\n\n"
-    clear_output(wait=True)
-    display(Markdown(md_output))
+# Note: visualize_conversation has been moved to nlp.py (new signature with show_recent_only parameter)
+# The old version here has been removed to avoid import conflicts

@@ -61,8 +61,13 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.53"
+__version__ = "1.6.56"
 # Version history:
+# 1.6.56 - CRITICAL BUG FIX: Fixed visualize_conversation() import conflict
+#          - Removed old visualize_conversation(conversation) from generation.py
+#          - Moved import to nlp.py where correct signature visualize_conversation(messages, show_recent_only=False) exists
+#          - Fixes TypeError when calling with show_recent_only parameter in student notebooks
+#          - This was causing failures even after package reinstall due to wrong module import in __init__.py
 # 1.6.53 - Version bump to force fresh install in CoCalc (no code changes)
 #          - Addresses package update propagation issues in student environments
 # 1.6.52 - Fixed export_this_to_html() to embed PNG images referenced in HTML <img> tags
@@ -357,7 +362,8 @@ try:
         update_openrouter_credit,
         clear_pipeline,
         print_pipeline_info,
-        Trainer
+        Trainer,
+        visualize_conversation  # Moved from .generation - now has show_recent_only parameter
     )
 
     # Text generation visualization functions
@@ -368,8 +374,8 @@ try:
         generate_detailed_beam_search,
         generate_top_k_sampling,
         generate_top_p_sampling,
-        plot_top_k_distribution,
-        visualize_conversation
+        plot_top_k_distribution
+        # Note: visualize_conversation is now imported from .nlp (above) with updated signature
     )
 
     # Summarization functions
