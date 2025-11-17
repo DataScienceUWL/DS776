@@ -144,7 +144,13 @@ def is_hyperstack():
 
 
 def clean_source_build_artifacts(introdl_dir, verbose_mode=False):
-    """Clean build artifacts from the source directory."""
+    """
+    Clean build artifacts and ALL bytecode from the source directory.
+
+    This is critical when Course_Tools is copied to student projects, as old
+    bytecode files may be present from previous versions, causing signature
+    mismatches and import errors.
+    """
     if verbose_mode:
         print_info("Cleaning source directory build artifacts...", force=True)
 
@@ -166,23 +172,106 @@ def clean_source_build_artifacts(introdl_dir, verbose_mode=False):
                 if verbose:
                     print_warning(f"  Could not remove {artifact.name}: {e}")
 
-    # Remove all __pycache__ directories
+    # Remove all __pycache__ directories (critical for student environments)
+    pycache_count = 0
     for pycache in introdl_dir.rglob("__pycache__"):
         try:
             import shutil
             shutil.rmtree(pycache)
-            if verbose:
-                print_info(f"  Removed cache: {pycache.name}")
-        except:
-            pass
+            pycache_count += 1
+            if verbose_mode:
+                print_info(f"  Removed cache: {pycache.relative_to(introdl_dir)}", force=True)
+        except Exception as e:
+            if verbose_mode:
+                print_warning(f"  Could not remove {pycache}: {e}")
 
-    # Remove all .pyc files (bytecode)
-    try:
-        import subprocess
-        subprocess.run(["find", str(introdl_dir), "-name", "*.pyc", "-delete"],
-                      capture_output=True, timeout=5)
-    except:
-        pass
+    # Remove all .pyc files (bytecode) - critical for preventing stale bytecode
+    pyc_count = 0
+    for pyc_file in introdl_dir.rglob("*.pyc"):
+        try:
+            pyc_file.unlink()
+            pyc_count += 1
+            if verbose_mode:
+                print_info(f"  Removed bytecode: {pyc_file.relative_to(introdl_dir)}", force=True)
+        except Exception as e:
+            if verbose_mode:
+                print_warning(f"  Could not remove {pyc_file}: {e}")
+
+    if (pycache_count > 0 or pyc_count > 0) and verbose_mode:
+        print_status(f"Cleaned {pycache_count} cache dirs and {pyc_count} bytecode files from source")
+    elif (pycache_count > 0 or pyc_count > 0):
+        print_info(f"Cleaned {pycache_count} cache dirs and {pyc_count} .pyc files from source", force=True)
+
+
+def clean_bytecode_from_installed_packages():
+    """
+    Remove all bytecode (.pyc) files from installed introdl packages.
+
+    This is critical to prevent Python from using stale cached bytecode when the
+    source code has changed. Stale bytecode can cause issues like:
+    - TypeError when function signatures change
+    - Missing attributes or methods
+    - Import errors from old module structure
+
+    This function clears ALL bytecode for introdl before reinstalling, ensuring
+    Python recompiles everything from the new source code.
+    """
+    import shutil
+
+    # Build list of all possible site-packages locations
+    locations = [
+        Path(site.getusersitepackages()),
+        Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        Path(sys.prefix) / "local" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+        Path(f"/usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+        Path(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages"),
+        Path("/usr/lib/python3/dist-packages"),
+    ]
+
+    # Add paths from sys.path
+    for p in sys.path:
+        if 'site-packages' in p or 'dist-packages' in p:
+            path_obj = Path(p)
+            if path_obj.exists():
+                locations.append(path_obj)
+
+    # Remove duplicates
+    locations = list(set(loc for loc in locations if loc.exists()))
+
+    cleaned_any = False
+    for location in locations:
+        introdl_path = location / "introdl"
+
+        if introdl_path.exists():
+            # Remove all __pycache__ directories
+            for pycache in introdl_path.rglob("__pycache__"):
+                try:
+                    shutil.rmtree(pycache)
+                    if verbose:
+                        print_info(f"Removed bytecode cache: {pycache}")
+                    cleaned_any = True
+                except Exception as e:
+                    if verbose:
+                        print_warning(f"Could not remove {pycache}: {e}")
+
+            # Remove all .pyc files
+            for pyc_file in introdl_path.rglob("*.pyc"):
+                try:
+                    pyc_file.unlink()
+                    if verbose:
+                        print_info(f"Removed bytecode: {pyc_file}")
+                    cleaned_any = True
+                except Exception as e:
+                    if verbose:
+                        print_warning(f"Could not remove {pyc_file}: {e}")
+
+    if cleaned_any:
+        if verbose:
+            print_status("Cleaned bytecode from all installed packages")
+        else:
+            print_info("Cleared old bytecode cache", force=True)
+
+    return cleaned_any
 
 
 def clean_all_installations():
@@ -253,46 +342,73 @@ def clean_all_installations():
     return cleaned_any
 
 
-def clean_course_tools_directory(course_tools_dir, force=False):
+def clean_course_tools_directory(course_tools_dir, force=False, always_clean_backups=False):
     """
     Clean obsolete files from Course_Tools directory.
-    Only runs on first execution or when forced (via --verbose).
 
     Removes:
-    - Files with ~ suffix (CoCalc backup files)
+    - Files with ~ suffix (CoCalc backup files) - always cleaned if always_clean_backups=True
     - Obsolete scripts from old versions
     - __pycache__ directory in Course_Tools root
 
-    Uses timestamp file to avoid repeated cleanup (runs max once per 7 days).
+    Uses timestamp file to avoid repeated cleanup of obsolete files (runs max once per 7 days),
+    but always cleans backup files (~) when always_clean_backups=True to prevent stale code.
     """
     import time
     import shutil
 
-    # Check timestamp file to avoid repeated cleanup
+    # Check timestamp file to avoid repeated cleanup of obsolete files
     timestamp_file = course_tools_dir / ".last_cleanup"
 
-    # Skip if cleaned recently (within 7 days) unless forced
-    if not force and timestamp_file.exists():
+    # Skip obsolete file cleanup if cleaned recently (within 7 days) unless forced
+    skip_obsolete_cleanup = False
+    if not force and not always_clean_backups and timestamp_file.exists():
         try:
             last_cleanup = timestamp_file.stat().st_mtime
             days_since = (time.time() - last_cleanup) / 86400
             if days_since < 7:
-                return False  # Skip cleanup
+                skip_obsolete_cleanup = True
         except:
             pass  # If we can't read timestamp, proceed with cleanup
 
     cleaned_any = False
 
-    # Remove all files with ~ suffix (CoCalc backup files)
-    for tilde_file in course_tools_dir.glob("*~"):
-        try:
-            tilde_file.unlink()
-            if verbose:
-                print_info(f"Removed backup: {tilde_file.name}")
-            cleaned_any = True
-        except Exception as e:
-            if verbose:
-                print_warning(f"Could not remove {tilde_file.name}: {e}")
+    # ALWAYS remove all files with ~ suffix when always_clean_backups=True
+    # This is critical to prevent old backup files from interfering
+    if always_clean_backups or not skip_obsolete_cleanup:
+        # Clean ~ files from Course_Tools root
+        tilde_count = 0
+        for tilde_file in course_tools_dir.glob("*~"):
+            try:
+                tilde_file.unlink()
+                tilde_count += 1
+                if verbose:
+                    print_info(f"Removed backup: {tilde_file.name}")
+                cleaned_any = True
+            except Exception as e:
+                if verbose:
+                    print_warning(f"Could not remove {tilde_file.name}: {e}")
+
+        # Clean ~ files from introdl source directory (critical!)
+        introdl_dir = course_tools_dir / "introdl"
+        if introdl_dir.exists():
+            for tilde_file in introdl_dir.rglob("*~"):
+                try:
+                    tilde_file.unlink()
+                    tilde_count += 1
+                    if verbose:
+                        print_info(f"Removed backup: {tilde_file.relative_to(course_tools_dir)}")
+                    cleaned_any = True
+                except Exception as e:
+                    if verbose:
+                        print_warning(f"Could not remove {tilde_file}: {e}")
+
+        if tilde_count > 0 and not verbose:
+            print_info(f"Removed {tilde_count} backup files (~)", force=True)
+
+    # Skip obsolete file cleanup if recently done
+    if skip_obsolete_cleanup:
+        return cleaned_any
 
     # Remove specific obsolete files (from old package structure migration)
     obsolete_files = [
@@ -374,12 +490,14 @@ def main():
         print_info("If you're in CoCalc, contact the instructor - the files may not be synced.", force=True)
         sys.exit(1)
 
-    # CRITICAL: Clean source build artifacts FIRST, before any version detection
-    # This prevents pip from using stale build artifacts that may have old structure
-    clean_source_build_artifacts(introdl_dir, verbose_mode=False)
+    # CRITICAL: ALWAYS clean source build artifacts and bytecode FIRST
+    # This prevents pip from using stale build artifacts or bytecode from old versions
+    # This is especially important when Course_Tools is copied to student projects
+    clean_source_build_artifacts(introdl_dir, verbose_mode=verbose)
 
     # Clean Course_Tools directory of obsolete files (runs max once per 7 days)
-    cleaned_course_tools = clean_course_tools_directory(script_dir, force=verbose)
+    # But always clean backup files (~) to prevent stale code issues
+    cleaned_course_tools = clean_course_tools_directory(script_dir, force=verbose, always_clean_backups=True)
     if cleaned_course_tools and not verbose:
         print_status("Cleaned Course_Tools directory")
 
@@ -503,12 +621,12 @@ def main():
 
     # Install/update if needed
     if needs_update:
-        # Clean source build artifacts again in verbose mode (already done silently above)
+        # Clean source build artifacts and bytecode AGAIN right before installation
+        # This ensures absolutely no stale bytecode or build artifacts
+        # Critical for student environments where old files may have been copied over
         if verbose:
-            clean_source_build_artifacts(introdl_dir, verbose_mode=True)
-        elif on_hyperstack:
-            # Hyperstack needs aggressive cleanup but quiet
-            clean_source_build_artifacts(introdl_dir, verbose_mode=False)
+            print_info("Final cleanup of source directory before installation...")
+        clean_source_build_artifacts(introdl_dir, verbose_mode=verbose)
 
         if not verbose:
             # Simple message for non-verbose mode
@@ -516,6 +634,18 @@ def main():
         else:
             print("\n📦 Installing/updating introdl...")
             print("=" * 32)
+
+        # FIRST: Clean bytecode from installed packages BEFORE removing them
+        # This ensures no stale .pyc files remain that could cause issues
+        if verbose:
+            print_info("Clearing bytecode cache from installed packages...")
+        clean_bytecode_from_installed_packages()
+
+        # Invalidate Python's import cache to force reimport
+        import importlib
+        importlib.invalidate_caches()
+        if verbose:
+            print_info("Invalidated Python's import cache")
 
         # Comprehensive cleanup of all installations
         if verbose:
@@ -630,6 +760,12 @@ def main():
                 if verbose:
                     print_status("Installation command completed")
 
+                # Invalidate Python's import cache again to pick up new installation
+                import importlib
+                importlib.invalidate_caches()
+                if verbose:
+                    print_info("Invalidated import cache for new installation")
+
                 # Wait a moment for installation to complete
                 import time
                 time.sleep(1)
@@ -674,6 +810,9 @@ def main():
                 ], capture_output=True, text=True)
 
                 if result2.returncode == 0:
+                    # Invalidate cache for alternative installation too
+                    import importlib
+                    importlib.invalidate_caches()
                     print_status("Alternative installation succeeded")
                     print("\n🔄 IMPORTANT: Restart your kernel and run this cell again!")
                     print("=" * 57)
