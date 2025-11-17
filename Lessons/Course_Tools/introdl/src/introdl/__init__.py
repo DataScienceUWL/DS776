@@ -61,8 +61,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.52"
+__version__ = "1.6.53"
 # Version history:
+# 1.6.53 - Version bump to force fresh install in CoCalc (no code changes)
+#          - Addresses package update propagation issues in student environments
 # 1.6.52 - Fixed export_this_to_html() to embed PNG images referenced in HTML <img> tags
 #          - Images are now converted to base64 data URIs and embedded in the HTML
 #          - Fixes issue where PNG files weren't included in exported HTML
