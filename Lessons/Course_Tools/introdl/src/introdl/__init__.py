@@ -61,8 +61,12 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.56"
+__version__ = "1.6.57"
 # Version history:
+# 1.6.57 - Enhanced convert_nb_to_html() image embedding:
+#          - Now supports PNG, JPG, JPEG, GIF, WEBP, SVG formats (was PNG only)
+#          - Handles markdown image syntax ![alt](path) in addition to HTML <img> tags
+#          - Correct MIME type detection for each image format
 # 1.6.56 - CRITICAL BUG FIX: Fixed visualize_conversation() import conflict
 #          - Removed old visualize_conversation(conversation) from generation.py
 #          - Moved import to nlp.py where correct signature visualize_conversation(messages, show_recent_only=False) exists
