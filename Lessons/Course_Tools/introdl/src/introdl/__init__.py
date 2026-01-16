@@ -61,8 +61,11 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.57"
+__version__ = "1.6.58"
 # Version history:
+# 1.6.58 - Added cleanup reminder to config_paths_keys() storage warnings
+#          - Now shows "💡 Run Storage_Cleanup.ipynb to free space when needed" after storage limit warnings
+#          - Applies to both CoCalc home server and compute server environments
 # 1.6.57 - Enhanced convert_nb_to_html() image embedding:
 #          - Now supports PNG, JPG, JPEG, GIF, WEBP, SVG formats (was PNG only)
 #          - Handles markdown image syntax ![alt](path) in addition to HTML <img> tags

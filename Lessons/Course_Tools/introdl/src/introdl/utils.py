@@ -504,7 +504,8 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         print(f"   Synced with CoCalc Home Server:")
         print(f"      MODELS_PATH: {format_path_for_display(models_path)}")
         print(f"      ⚠️ Shared storage limited to about 10GB")
-        
+        print(f"      💡 Run Storage_Cleanup.ipynb to free space when needed")
+
         # Data and cache are local to compute server only
         print(f"   Local only on this Compute Server:")
         print(f"      DATA_PATH: {format_path_for_display(data_path)}")
@@ -521,6 +522,7 @@ def config_paths_keys(env_path=None, api_env_path=None, local_workspace=False):
         
         if environment == "cocalc":
             print(f"   ⚠️ 10GB storage limit in CoCalc")
+            print(f"   💡 Run Storage_Cleanup.ipynb to free space when needed")
 
     # -- Load API keys with priority system --
     # Priority: 1) Environment variables, 2) ~/api_keys.env, 3) home_workspace/api_keys.env
