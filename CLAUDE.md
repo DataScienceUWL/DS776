@@ -265,8 +265,8 @@ Claude will automatically:
 | 04 | L04 | Better Networks | IDL Sections 6.1-6.5 |
 | 05 | L05 | Transfer Learning | IDL Sections 13.1-13.3 |
 | 06 | L06 | Object Detection | IDL Chapter 8 |
-| 07 | L07 | Transformers Intro | NLPWT Ch. 1-2 |
-| 08 | L08 | Text Classification | NLPWT Ch. 3 |
+| 07 | L07 | Transformers Intro | NLPWT Ch. 1 |
+| 08 | L08 | Text Classification | NLPWT Ch. 2 |
 | 09 | L09 | Transformer Details | Report (no solution) |
 | 10 | L10 | Named Entity Recognition | NLPWT Ch. 4 |
 | 11 | L11 | Text Generation | NLPWT Ch. 5 |
@@ -278,6 +278,64 @@ Claude will automatically:
 - Readings in `Lessons/Lesson_XX_[Topic]/L_XX_0_Overview.ipynb`
 
 **Full instructions**: `Developer/Solutions/Solution_Generation_Instructions.md`
+
+## Generating Canvas Reading Quizzes
+
+### Overview
+Reading quizzes are Canvas multiple choice quizzes (10 pts each) created from textbook readings. They are separate from homework notebooks and imported into Canvas as QTI packages.
+
+### Tool: text-to-qti
+- **Install:** `pip install text-to-qti`
+- **Docs:** https://pypi.org/project/text-to-qti/
+- **Convert:** `text-to-qti convert quiz_XX.md -o quiz_XX.zip`
+- **Import to Canvas:** Settings → Import Course Content → QTI .zip file
+
+### Quiz File Location
+- **Source files:** `Developer/Quizzes/quiz_XX.md`
+- **Generated ZIPs:** `Developer/Quizzes/quiz_XX.zip`
+
+### Quiz Markdown Format
+```markdown
+---
+title: Lesson X Reading Quiz
+description: Quiz on readings for Lesson X
+points_per_question: 1
+shuffle_answers: true
+---
+
+## Question 1
+[Type: multiple_choice]
+
+Question text here?
+
+a) Wrong answer
+*b) Correct answer (marked with asterisk)
+c) Wrong answer
+d) Wrong answer
+
+Feedback: Explanation with textbook reference (e.g., "See Section 2.3").
+```
+
+### Quiz Creation Workflow
+1. **Read assigned sections** from textbook (see Homework-Lesson-Textbook Mapping above)
+2. **Create quiz_XX.md** with 10 multiple choice questions (1 pt each)
+3. **Align questions** with specific sections - include page/section references in feedback
+4. **Convert to QTI:** `text-to-qti convert Developer/Quizzes/quiz_XX.md -o Developer/Quizzes/quiz_XX.zip`
+5. **Import to Canvas:** Course Settings → Import Course Content → QTI .zip file
+6. **Configure in Canvas:** Set due date, attempts, time limit as needed
+
+### Quiz Alignment Requirements
+**CRITICAL:** Each quiz question MUST be answerable from the assigned reading only. When creating quizzes:
+- Reference specific textbook sections
+- Use terminology from the textbook
+- Avoid questions that require external knowledge
+- Include feedback that points students to relevant sections
+
+### Spring 2026 Plan
+See `Developer/Spring_2026_Launch_Plan.md` for the full launch plan including:
+- Quiz creation checklist for all 11 lessons (L09 excluded - report assignment)
+- Homework update tasks (remove embedded reading questions, add storage reminders)
+- Issues from `Developer/Spring_2026_updates.md` to address
 
 ## Important Notes
 - This is an educational repository - prioritize clarity and learning objectives

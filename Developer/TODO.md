@@ -1,20 +1,74 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2025-11-12
+**Last Updated:** 2026-01-15
 
 ---
 
-## 🔥 Current Priority: Lesson 10 Completion + Custom GPT Bundle
+## 🔥 Current Priority: Spring 2026 Launch Preparation
 
 **Critical Path:**
+1. **Canvas Reading Quizzes** - Convert reading questions to Canvas multiple choice quizzes
+2. **Homework Updates** - Remove embedded reading questions, add storage reminders
+3. **Consistency Pass** - Address issues from Spring_2026_updates.md
+4. **Testing** - Test all materials before semester start
+
+**See:** `Developer/Spring_2026_Launch_Plan.md` for detailed plan
+
+---
+
+## 🎯 Spring 2026 Launch Checklist
+
+### Phase 1: Reading Quiz Creation (11 quizzes)
+- [ ] Install text-to-qti tool: `pip install text-to-qti`
+- [ ] Create `Developer/Quizzes/` directory
+- [ ] L01: Create quiz_01.md (IDL Ch 1-2)
+- [ ] L02: Create quiz_02.md (IDL Ch 3)
+- [ ] L03: Create quiz_03.md (IDL 3.6, 5.1-5.3)
+- [ ] L04: Create quiz_04.md (IDL 6.1-6.5)
+- [ ] L05: Create quiz_05.md (IDL 13.1-13.3)
+- [ ] L06: Create quiz_06.md (IDL Ch 8)
+- [ ] L07: Create quiz_07.md (NLPWT Ch 1)
+- [ ] L08: Create quiz_08.md (NLPWT Ch 2)
+- [ ] L10: Create quiz_10.md (NLPWT Ch 4)
+- [ ] L11: Create quiz_11.md (NLPWT Ch 5)
+- [ ] L12: Create quiz_12.md (NLPWT Ch 6)
+
+### Phase 2: Homework Updates
+- [ ] Add storage reminder template to all HW notebooks
+- [ ] HW07: Remove embedded reading questions
+- [ ] HW08: Remove embedded reading questions
+- [ ] Update point allocations in all homework headers
+- [ ] Verify reflection sections present (2 pts each)
+
+### Phase 3: Spring_2026_updates.md Issues
+**Priority 1 (Must Fix):**
+- [ ] L01: Use train/validation terminology consistently
+- [ ] L05: Verify timm in introdl package
+- [ ] L06: Verify ultralytics in introdl package
+- [ ] L07: Document max_tokens for llm_generate
+- [ ] L08: Update HW to reference OpenRouter models
+- [ ] L10: Ensure best_model saved correctly
+- [ ] L11: Verify reading questions align with Ch 5
+
+**Priority 2 (Should Fix):**
+- [ ] L01: Add PyTorch pipeline overview
+- [ ] L02: Improve train_network documentation
+- [ ] L03: Better scheduler explanation
+- [ ] L04: More residual connection scaffolding
+- [ ] L05: Layer indexing/freezing examples
+- [ ] L07: Add f-string prompt examples
+
+---
+
+## ✅ Fall 2025 Completed Work
+
+### Lesson 10 Completion + Custom GPT Bundle (Previous Priority)
 1. ✅ **Lessons 7-9 Complete** - Lesson 7, 8, 9 updated and tested
 2. ✅ **Homework 7-8 Complete** - Reading questions + new API
 3. ✅ **Lesson 11 v2 Complete** - Text Generation updated with 2025 content, APIs, 70B models
 4. ✅ **Homework 11 v2 Complete** - Ready for review (solutions & testing needed)
 5. ✅ **Lesson 12 Complete** - Summarization updated with auto-update, flat imports, 2025 models
 6. ✅ **Homework 12 Complete** - Reading questions, hint cells, production pipeline task
-7. **Next: Lesson 10** - Named Entity Recognition (helpers + homework updates)
-8. **High Priority: Custom GPT Bundle for Lessons 7-12** - Package learning materials
 
 ---
 
