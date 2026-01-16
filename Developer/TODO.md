@@ -1,6 +1,6 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-16
 
 ---
 
@@ -13,6 +13,13 @@
 4. **Testing** - Test all materials before semester start
 
 **See:** `Developer/Spring_2026_Launch_Plan.md` for detailed plan
+
+### Quiz Specifications (Confirmed 2026-01-16)
+- **Points:** 40 pts homework + 10 pts quiz per lesson
+- **Quiz timing:** Same deadline as homework
+- **Attempts:** 2 attempts allowed
+- **Feedback:** Correct answers shown after due date
+- **L07 scope:** Both NLPWT Chapters 1 and 2
 
 ---
 

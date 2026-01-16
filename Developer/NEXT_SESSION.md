@@ -1,44 +1,43 @@
 # DS776 - Next Session Context
 
-**Last Updated:** 2026-01-15
-**Session Focus:** Spring 2026 Launch Preparation
+**Last Updated:** 2026-01-16
+**Session Focus:** Spring 2026 Launch Preparation - Quiz Creation
 
 ---
 
-## 🎯 Current Status: Planning Complete, Ready to Execute
+## 🎯 Current Status: Questions Answered, Creating Quizzes
 
-### What Was Accomplished This Session
+### What Was Accomplished This Session (2026-01-16)
 
-1. **Created comprehensive launch plan:** `Developer/Spring_2026_Launch_Plan.md`
-   - Detailed checklist for all lessons (L01-L12)
-   - Quiz creation workflow using text-to-qti
-   - Homework update requirements
-   - Issues from Spring_2026_updates.md prioritized
-
-2. **Updated TODO.md** with Spring 2026 priorities
-   - New checklist format for tracking progress
-   - Organized by phase (quizzes, homework, issues)
-
-3. **Updated CLAUDE.md** with quiz workflow
-   - Added "Generating Canvas Reading Quizzes" section
-   - Documented text-to-qti format and usage
-   - Added quiz alignment requirements
+1. **Answered instructor questions** about quiz configuration
+2. **Created Quizzes directory:** `Developer/Quizzes/`
+3. **Starting Quiz 01 creation** from IDL Chapters 1-2
 
 ---
 
-## ❓ Questions Awaiting Instructor Answers
+## ✅ Quiz Specifications (Confirmed)
 
-Before proceeding, need decisions on:
+| Setting | Value |
+|---------|-------|
+| Points per quiz | 10 pts (1 pt per question) |
+| Homework points | 40 pts (reduced from 50) |
+| Quiz timing | Same deadline as homework |
+| Attempts | 2 allowed |
+| Feedback | Show correct answers after due date |
+| L07 scope | NLPWT Chapters 1 AND 2 |
 
-1. **Point structure:** Should each week have 50 pts homework + 10 pts quiz = 60 total? Or redistribute?
+---
 
-2. **Quiz timing:** Should reading quizzes be due before the homework deadline, or at the same time?
+## ⚠️ Large PDF Strategy
 
-3. **Quiz attempts:** How many attempts should students get on reading quizzes?
+**Problem:** IDL Chapter 2 PDF (~4.5MB) is too large for context.
 
-4. **Quiz feedback:** Should students see correct answers immediately, or after the due date?
+**Solution:** Parse chapter PDFs in chunks:
+1. Read PDF page by page or section by section
+2. Extract key concepts for quiz questions
+3. Never try to load entire chapter at once
 
-5. **L07 reading scope:** L07 overview mentions "Chapters 1-2" but HW07 questions only cover Chapter 1. Should the quiz cover just Ch 1, or both Ch 1-2?
+This applies to any large chapter PDFs.
 
 ---
 
@@ -94,7 +93,7 @@ For each lesson (L01 → L12):
 | L04 | IDL | 6.1-6.5 |
 | L05 | IDL | 13.1-13.3 |
 | L06 | IDL | Ch 8 |
-| L07 | NLPWT | Ch 1 |
+| L07 | NLPWT | Ch 1 AND Ch 2 |
 | L08 | NLPWT | Ch 2 |
 | L09 | - | Report (no quiz) |
 | L10 | NLPWT | Ch 4 |
@@ -122,4 +121,4 @@ The previous session completed Lesson 11 v3 with class-based API approach:
 
 ---
 
-**NEXT SESSION PRIORITY:** Get answers to instructor questions, then begin L01 quiz + homework updates
+**CURRENT SESSION:** Creating Quiz 01 from IDL Chapters 1-2 (parsing in chunks)
