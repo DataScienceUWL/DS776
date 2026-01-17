@@ -47,7 +47,9 @@ def _configure_environment():
     os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
 
     # Detect environment and set appropriate paths
-    if (home / '.cocalc').exists():
+    # Check multiple CoCalc indicators (not all may be present)
+    is_cocalc = (home / '.cocalc').exists() or (home / '.smc').exists() or 'COCALC_PROJECT_ID' in os.environ
+    if is_cocalc:
         cs_workspace = home / 'cs_workspace'
         if cs_workspace.exists() and (home / 'home_workspace').exists():
             # CoCalc Compute Server - use local storage for data/cache

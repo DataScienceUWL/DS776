@@ -29,7 +29,9 @@ os.environ['USE_TF'] = 'NO'
 from pathlib import Path as _Path
 _home = _Path.home()
 
-if (_home / '.cocalc').exists():
+# Check multiple CoCalc indicators (not all may be present)
+_is_cocalc = (_home / '.cocalc').exists() or (_home / '.smc').exists() or 'COCALC_PROJECT_ID' in os.environ
+if _is_cocalc:
     # CoCalc environment
     _cs_workspace = _home / 'cs_workspace'
     if _cs_workspace.exists() and (_home / 'home_workspace').exists():
@@ -70,7 +72,7 @@ elif 'DS776_ROOT_DIR' in os.environ:
     os.environ.setdefault('XDG_CACHE_HOME', str(_cache_base))
 
 # Clean up temporary variables
-del _Path, _home
+del _Path, _home, _is_cocalc
 if '_cs_workspace' in dir(): del _cs_workspace
 if '_cache_base' in dir(): del _cache_base
 if '_data_base' in dir(): del _data_base
@@ -123,8 +125,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.59"
+__version__ = "1.6.60"
 # Version history:
+# 1.6.60 - Improved CoCalc detection: now checks ~/.cocalc, ~/.smc, and COCALC_PROJECT_ID env var
+#          - Fixes "Local Development or Other" detection on some CoCalc instances
 # 1.6.59 - Environment setup now runs BEFORE any library imports via auto_update_introdl.py
 #          - Sets TORCH_HOME, HF_HOME, TRANSFORMERS_CACHE, etc. early to control cache locations
 #          - Prevents downloads from going to ~/.cache (now goes to home_workspace/ or cs_workspace/)
