@@ -1126,7 +1126,7 @@ def get_homework_storage_report(current_hw=None):
     - home_workspace/data/, home_workspace/downloads/, home_workspace/models/
     - cs_workspace/data/, cs_workspace/downloads/, cs_workspace/models/ (compute servers only)
     - Lesson_XX_Models folders (Lessons 1 to current homework number)
-    - Homework_XX_Models folders (Homework 1 to current homework number - 1)
+    - Homework_XX_Models folders (Homework 1 to current homework number - 2, keeping current and previous)
     - ~/.cache/huggingface/ (HuggingFace Hub cached models and datasets)
 
     Args:
@@ -1215,10 +1215,10 @@ def get_homework_storage_report(current_hw=None):
                         storage_items.append((models_dir, size))
                         total_storage += size
 
-    # 4. Analyze Homework Models (up to current_hw - 1)
+    # 4. Analyze Homework Models (up to current_hw - 2, keeping current and previous)
     homework_dir = course_root / "Homework"
     if homework_dir.exists():
-        for i in range(1, current_hw):  # Note: current_hw - 1 is the max
+        for i in range(1, current_hw - 1):  # Keeps current_hw and current_hw - 1
             hw_folder = homework_dir / f"Homework_{i:02d}"
 
             if hw_folder.exists():

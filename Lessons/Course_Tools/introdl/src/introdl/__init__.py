@@ -124,8 +124,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.61"
+__version__ = "1.6.62"
 # Version history:
+# 1.6.62 - Storage cleanup now keeps current AND previous homework models (deletes up to HW N-2)
 # 1.6.61 - Removed deprecated TRANSFORMERS_CACHE env var (causes FutureWarning in transformers v5+)
 #          - HF_HOME is now the sole setting for HuggingFace cache location
 # 1.6.60 - Improved CoCalc detection: now checks ~/.cocalc, ~/.smc, and COCALC_PROJECT_ID env var
