@@ -9,6 +9,13 @@ import sys
 import warnings
 import logging
 
+# =============================================================================
+# EARLY ENVIRONMENT CONFIGURATION (backup - primary is in auto_update_introdl.py)
+# Must happen BEFORE any transformers/torch/huggingface imports!
+# The auto_update script sets these first via %run, but this is a safety net
+# for cases where introdl is imported directly without running auto_update.
+# =============================================================================
+
 # Suppress all TensorFlow and CUDA environment messages
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -17,6 +24,61 @@ os.environ['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '0')
 # Tell transformers not to use TensorFlow (fixes Keras 3 compatibility issues in CoCalc)
 os.environ['TRANSFORMERS_NO_TF'] = '1'
 os.environ['USE_TF'] = 'NO'
+
+# Set cache paths based on environment (uses setdefault to not override auto_update settings)
+from pathlib import Path as _Path
+_home = _Path.home()
+
+if (_home / '.cocalc').exists():
+    # CoCalc environment
+    _cs_workspace = _home / 'cs_workspace'
+    if _cs_workspace.exists() and (_home / 'home_workspace').exists():
+        # Compute server - use local storage for data/cache
+        _cache_base = _cs_workspace / 'downloads'
+        _data_base = _cs_workspace / 'data'
+    else:
+        # Regular CoCalc - use synced storage
+        _cache_base = _home / 'home_workspace' / 'downloads'
+        _data_base = _home / 'home_workspace' / 'data'
+
+    # Create directories if needed
+    _cache_base.mkdir(parents=True, exist_ok=True)
+    _data_base.mkdir(parents=True, exist_ok=True)
+
+    # Set cache paths (setdefault won't override if auto_update already set them)
+    os.environ.setdefault('TORCH_HOME', str(_cache_base))
+    os.environ.setdefault('HF_HOME', str(_cache_base / 'huggingface'))
+    os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(_cache_base / 'huggingface' / 'hub'))
+    os.environ.setdefault('TRANSFORMERS_CACHE', str(_cache_base / 'huggingface' / 'hub'))
+    os.environ.setdefault('HF_DATASETS_CACHE', str(_data_base))
+    os.environ.setdefault('XDG_CACHE_HOME', str(_cache_base))
+
+elif 'DS776_ROOT_DIR' in os.environ:
+    # Local development
+    _root = _Path(os.environ['DS776_ROOT_DIR'])
+    _cache_base = _root / 'home_workspace' / 'downloads'
+    _data_base = _root / 'home_workspace' / 'data'
+
+    _cache_base.mkdir(parents=True, exist_ok=True)
+    _data_base.mkdir(parents=True, exist_ok=True)
+
+    os.environ.setdefault('TORCH_HOME', str(_cache_base))
+    os.environ.setdefault('HF_HOME', str(_cache_base / 'huggingface'))
+    os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(_cache_base / 'huggingface' / 'hub'))
+    os.environ.setdefault('TRANSFORMERS_CACHE', str(_cache_base / 'huggingface' / 'hub'))
+    os.environ.setdefault('HF_DATASETS_CACHE', str(_data_base))
+    os.environ.setdefault('XDG_CACHE_HOME', str(_cache_base))
+
+# Clean up temporary variables
+del _Path, _home
+if '_cs_workspace' in dir(): del _cs_workspace
+if '_cache_base' in dir(): del _cache_base
+if '_data_base' in dir(): del _data_base
+if '_root' in dir(): del _root
+
+# =============================================================================
+# END EARLY ENVIRONMENT CONFIGURATION
+# =============================================================================
 
 # Suppress Python warnings
 warnings.filterwarnings('ignore', message='.*MessageFactory.*')
@@ -61,8 +123,13 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.58"
+__version__ = "1.6.59"
 # Version history:
+# 1.6.59 - Environment setup now runs BEFORE any library imports via auto_update_introdl.py
+#          - Sets TORCH_HOME, HF_HOME, TRANSFORMERS_CACHE, etc. early to control cache locations
+#          - Prevents downloads from going to ~/.cache (now goes to home_workspace/ or cs_workspace/)
+#          - Backup env setup in __init__.py for direct imports without running auto_update
+#          - Updated homework notebook cell 0 comments to reflect environment setup functionality
 # 1.6.58 - Added cleanup reminder to config_paths_keys() storage warnings
 #          - Now shows "💡 Run Storage_Cleanup.ipynb to free space when needed" after storage limit warnings
 #          - Applies to both CoCalc home server and compute server environments

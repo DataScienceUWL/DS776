@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
 """
-DS776 Auto-Update introdl Script (Python version for Windows compatibility)
-This script checks if introdl needs updating and does minimal setup
-Cross-platform: Works on Windows, Mac, Linux
+DS776 Environment Setup & Package Update Script
+
+This script does two critical things:
+1. CONFIGURES ENVIRONMENT: Sets up cache paths (HF_HOME, TORCH_HOME, etc.) BEFORE
+   any libraries are imported. This ensures downloads go to the right locations
+   for proper storage cleanup and syncing.
+2. UPDATES PACKAGE: Checks if introdl needs updating and installs if necessary.
+
+Why environment setup must happen here:
+- HuggingFace/PyTorch cache paths are locked at import time
+- This script runs via %run BEFORE any imports in the notebook
+- Setting paths here ensures all downloads go to home_workspace/ or cs_workspace/
+- Files in the right locations can be cleaned up by Storage_Cleanup.ipynb
+
+Cross-platform: Works on Windows, Mac, Linux, CoCalc, Hyperstack
 """
 
 import subprocess
@@ -12,6 +24,79 @@ from pathlib import Path
 import json
 import re
 import site
+
+# =============================================================================
+# EARLY ENVIRONMENT CONFIGURATION
+# Must happen BEFORE any transformers/torch/huggingface imports anywhere!
+# This section runs immediately when the script is %run, before student code.
+# =============================================================================
+
+def _configure_environment():
+    """
+    Configure cache paths and suppress TF/Keras errors.
+    Returns a string describing what was configured.
+    """
+    home = Path.home()
+    env_type = None
+    cache_base = None
+    data_base = None
+
+    # Suppress TensorFlow/Keras (prevents HuggingFace TF import errors)
+    os.environ.setdefault('TRANSFORMERS_NO_TF', '1')
+    os.environ.setdefault('USE_TF', 'NO')
+    os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
+
+    # Detect environment and set appropriate paths
+    if (home / '.cocalc').exists():
+        cs_workspace = home / 'cs_workspace'
+        if cs_workspace.exists() and (home / 'home_workspace').exists():
+            # CoCalc Compute Server - use local storage for data/cache
+            env_type = "CoCalc Compute Server"
+            cache_base = cs_workspace / 'downloads'
+            data_base = cs_workspace / 'data'
+        else:
+            # Regular CoCalc - use synced storage
+            env_type = "CoCalc"
+            cache_base = home / 'home_workspace' / 'downloads'
+            data_base = home / 'home_workspace' / 'data'
+    elif 'DS776_ROOT_DIR' in os.environ:
+        # Local development with DS776_ROOT_DIR set
+        env_type = "Local Development"
+        root = Path(os.environ['DS776_ROOT_DIR'])
+        cache_base = root / 'home_workspace' / 'downloads'
+        data_base = root / 'home_workspace' / 'data'
+    else:
+        # Other environment (standalone, unknown)
+        env_type = None
+
+    # Set cache environment variables if we identified the environment
+    if cache_base and data_base:
+        # Create directories if they don't exist
+        cache_base.mkdir(parents=True, exist_ok=True)
+        data_base.mkdir(parents=True, exist_ok=True)
+
+        # PyTorch cache (torchvision models, torch.hub)
+        os.environ.setdefault('TORCH_HOME', str(cache_base))
+
+        # HuggingFace cache (transformers, hub, tokenizers)
+        os.environ.setdefault('HF_HOME', str(cache_base / 'huggingface'))
+        os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(cache_base / 'huggingface' / 'hub'))
+        os.environ.setdefault('TRANSFORMERS_CACHE', str(cache_base / 'huggingface' / 'hub'))
+
+        # HuggingFace datasets go to data directory
+        os.environ.setdefault('HF_DATASETS_CACHE', str(data_base))
+
+        # General cache fallback
+        os.environ.setdefault('XDG_CACHE_HOME', str(cache_base))
+
+    return env_type
+
+# Run environment configuration immediately
+_ENV_TYPE = _configure_environment()
+
+# =============================================================================
+# END EARLY ENVIRONMENT CONFIGURATION
+# =============================================================================
 
 # Global verbose flag
 verbose = False
@@ -600,8 +685,10 @@ def main():
             print_info(f"Version mismatch ({installed_version} != {source_version}) - will update")
         needs_update = True
     else:
-        # Already up to date - only show this message
-        print_status(f"introdl v{installed_version} already up to date")
+        # Already up to date - show environment config and package status
+        if _ENV_TYPE:
+            print_status(f"{_ENV_TYPE} environment configured (storage paths set for cleanup/sync)")
+        print_status(f"introdl v{installed_version} ready")
 
     # Build list of search paths for installations
     # This will be used if we need to do a complete removal
