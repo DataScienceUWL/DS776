@@ -81,9 +81,9 @@ def _configure_environment():
         os.environ.setdefault('TORCH_HOME', str(cache_base))
 
         # HuggingFace cache (transformers, hub, tokenizers)
+        # Note: HF_HOME is the primary setting; TRANSFORMERS_CACHE is deprecated in v5+
         os.environ.setdefault('HF_HOME', str(cache_base / 'huggingface'))
         os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(cache_base / 'huggingface' / 'hub'))
-        os.environ.setdefault('TRANSFORMERS_CACHE', str(cache_base / 'huggingface' / 'hub'))
 
         # HuggingFace datasets go to data directory
         os.environ.setdefault('HF_DATASETS_CACHE', str(data_base))

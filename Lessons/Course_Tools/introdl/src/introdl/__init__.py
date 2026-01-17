@@ -48,10 +48,10 @@ if _is_cocalc:
     _data_base.mkdir(parents=True, exist_ok=True)
 
     # Set cache paths (setdefault won't override if auto_update already set them)
+    # Note: HF_HOME is the primary setting; TRANSFORMERS_CACHE is deprecated in v5+
     os.environ.setdefault('TORCH_HOME', str(_cache_base))
     os.environ.setdefault('HF_HOME', str(_cache_base / 'huggingface'))
     os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(_cache_base / 'huggingface' / 'hub'))
-    os.environ.setdefault('TRANSFORMERS_CACHE', str(_cache_base / 'huggingface' / 'hub'))
     os.environ.setdefault('HF_DATASETS_CACHE', str(_data_base))
     os.environ.setdefault('XDG_CACHE_HOME', str(_cache_base))
 
@@ -67,7 +67,6 @@ elif 'DS776_ROOT_DIR' in os.environ:
     os.environ.setdefault('TORCH_HOME', str(_cache_base))
     os.environ.setdefault('HF_HOME', str(_cache_base / 'huggingface'))
     os.environ.setdefault('HUGGINGFACE_HUB_CACHE', str(_cache_base / 'huggingface' / 'hub'))
-    os.environ.setdefault('TRANSFORMERS_CACHE', str(_cache_base / 'huggingface' / 'hub'))
     os.environ.setdefault('HF_DATASETS_CACHE', str(_data_base))
     os.environ.setdefault('XDG_CACHE_HOME', str(_cache_base))
 
@@ -125,8 +124,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.60"
+__version__ = "1.6.61"
 # Version history:
+# 1.6.61 - Removed deprecated TRANSFORMERS_CACHE env var (causes FutureWarning in transformers v5+)
+#          - HF_HOME is now the sole setting for HuggingFace cache location
 # 1.6.60 - Improved CoCalc detection: now checks ~/.cocalc, ~/.smc, and COCALC_PROJECT_ID env var
 #          - Fixes "Local Development or Other" detection on some CoCalc instances
 # 1.6.59 - Environment setup now runs BEFORE any library imports via auto_update_introdl.py
