@@ -124,8 +124,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.62"
+__version__ = "1.6.63"
 # Version history:
+# 1.6.63 - Added beautifulsoup4 to dependencies in pyproject.toml
 # 1.6.62 - Storage cleanup now keeps current AND previous homework models (deletes up to HW N-2)
 # 1.6.61 - Removed deprecated TRANSFORMERS_CACHE env var (causes FutureWarning in transformers v5+)
 #          - HF_HOME is now the sole setting for HuggingFace cache location

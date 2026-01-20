@@ -11,6 +11,7 @@ authors = [
 ]
 dependencies = [
     "accelerate",
+    "beautifulsoup4",
     "bert_score",
     "bertviz",
     "bitsandbytes>=0.45.3",
