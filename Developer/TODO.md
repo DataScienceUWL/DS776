@@ -1,6 +1,6 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-20
 
 ---
 
@@ -41,17 +41,27 @@
 - [ ] L12: Create quiz_12.md (NLPWT Ch 6)
 
 ### Phase 2: Homework Updates
+- [x] Standardize placeholder formats across all HW notebooks (2026-01-20)
+- [x] Remove pip install instructions from HW05, HW06, HW07 (2026-01-20)
+- [x] Remove Colab notebooks from HW11, HW12 (2026-01-20)
+- [x] Add beautifulsoup4 to introdl dependencies (v1.6.63) (2026-01-20)
 - [ ] Add storage reminder template to all HW notebooks
 - [ ] HW07: Remove embedded reading questions
 - [ ] HW08: Remove embedded reading questions
 - [ ] Update point allocations in all homework headers
 - [ ] Verify reflection sections present (2 pts each)
 
+### Phase 2b: Repository Cleanup (2026-01-20) ✅ COMPLETE
+- [x] Add Homework/Homework_Tests/ to .gitignore and remove from repo
+- [x] Remove Lessons/Lesson_12_Summarization_v1/ (duplicate folder)
+- [x] Remove Lessons/Lesson_13_Project/ (renamed to Lesson_13_14_Project)
+- [x] Sync and verify CoCalc can pull clean copy
+
 ### Phase 3: Spring_2026_updates.md Issues
 **Priority 1 (Must Fix):**
 - [ ] L01: Use train/validation terminology consistently
-- [ ] L05: Verify timm in introdl package
-- [ ] L06: Verify ultralytics in introdl package
+- [x] L05: Verify timm in introdl package ✅ (already in pyproject.toml)
+- [x] L06: Verify ultralytics in introdl package ✅ (already in pyproject.toml)
 - [ ] L07: Document max_tokens for llm_generate
 - [ ] L08: Update HW to reference OpenRouter models
 - [ ] L10: Ensure best_model saved correctly
