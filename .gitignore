@@ -22,6 +22,9 @@ Developer/
 # Ignore extras folder
 extras/
 
+# Homework test notebooks (development only)
+Homework/Homework_Tests/
+
 # Ignore Textbooks
 Textbooks/
 Resources/
