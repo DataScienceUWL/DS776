@@ -124,8 +124,9 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.63"
+__version__ = "1.6.64"
 # Version history:
+# 1.6.64 - Lazy-import generation and summarization modules to avoid transformers/accelerate circular import
 # 1.6.63 - Added beautifulsoup4 to dependencies in pyproject.toml
 # 1.6.62 - Storage cleanup now keeps current AND previous homework models (deletes up to HW N-2)
 # 1.6.61 - Removed deprecated TRANSFORMERS_CACHE env var (causes FutureWarning in transformers v5+)
@@ -447,23 +448,8 @@ try:
         visualize_conversation  # Moved from .generation - now has show_recent_only parameter
     )
 
-    # Text generation visualization functions
-    from .generation import (
-        model_report,
-        generate_top_k_table,
-        generate_greedy_decoding_table,
-        generate_detailed_beam_search,
-        generate_top_k_sampling,
-        generate_top_p_sampling,
-        plot_top_k_distribution
-        # Note: visualize_conversation is now imported from .nlp (above) with updated signature
-    )
-
-    # Summarization functions
-    from .summarization import (
-        compute_all_metrics,
-        print_metrics
-    )
+    # Text generation and summarization are lazy-imported via __getattr__ below
+    # to avoid eagerly loading transformers/accelerate (circular import risk)
 
     # Storage utilities
     from .storage import (
@@ -540,3 +526,20 @@ __all__ = [
     "save_state", "load_state", "enable_cell_autosave", "list_states", "delete_states",
     "register_dataloader", "rebuild_registered_dataloaders"
 ]
+
+# Lazy imports for modules that pull in transformers/accelerate
+_GENERATION_NAMES = {
+    "model_report", "generate_top_k_table", "generate_greedy_decoding_table",
+    "generate_detailed_beam_search", "generate_top_k_sampling",
+    "generate_top_p_sampling", "plot_top_k_distribution",
+}
+_SUMMARIZATION_NAMES = {"compute_all_metrics", "print_metrics"}
+
+def __getattr__(name):
+    if name in _GENERATION_NAMES:
+        from . import generation
+        return getattr(generation, name)
+    if name in _SUMMARIZATION_NAMES:
+        from . import summarization
+        return getattr(summarization, name)
+    raise AttributeError(f"module 'introdl' has no attribute {name!r}")
