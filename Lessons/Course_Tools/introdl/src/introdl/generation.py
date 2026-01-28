@@ -1,5 +1,12 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+except ImportError as e:
+    raise ImportError(
+        "Failed to import transformers. This is usually caused by incompatible "
+        "versions of transformers and accelerate. Fix with:\n"
+        "    pip install --upgrade transformers accelerate"
+    ) from e
 import numpy as np
 import pandas as pd
 from IPython.display import display, HTML, clear_output, Markdown

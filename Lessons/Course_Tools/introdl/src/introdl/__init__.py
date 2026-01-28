@@ -124,8 +124,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.64"
+__version__ = "1.6.66"
 # Version history:
+# 1.6.66 - auto_update syncs transformers/accelerate on install; friendly error in generation.py
+# 1.6.65 - Friendly error message in generation.py when transformers/accelerate are incompatible
 # 1.6.64 - Lazy-import generation and summarization modules to avoid transformers/accelerate circular import
 # 1.6.63 - Added beautifulsoup4 to dependencies in pyproject.toml
 # 1.6.62 - Storage cleanup now keeps current AND previous homework models (deletes up to HW N-2)
