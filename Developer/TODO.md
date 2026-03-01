@@ -1,6 +1,6 @@
 # DS776 Course Development TODO
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-03-01
 
 ---
 
@@ -698,6 +698,63 @@ Session 2+ (re-runs):
 
 ---
 
+## ✅ CoCalc Remote Management Integration (2026-03-01) **COMPLETE**
+
+**Status:** SSH access, CoCalc API integration, and `/diagnose-student` enhancement all complete
+
+### Accomplishments
+
+#### SSH Access to CoCalc
+- [x] Generated ed25519 SSH key pair (`~/.ssh/cocalc_ds776`)
+- [x] Configured `~/.ssh/config` with `Host cocalc` alias
+- [x] Verified SSH connection: `ssh cocalc` works for remote commands and scp
+- [x] Copied Course_Management folder from CoCalc to `Developer/Course_Management/`
+
+#### CoCalc API Integration
+- [x] Configured global API key (`COCALC_API_KEY` in `~/.bashrc`) — can access all student projects
+- [x] Configured project-specific API key (`COCALC_PROJECT_API_KEY` in `~/.bashrc`)
+- [x] Verified API endpoints: `/projects/start`, `/exec`, `/accounts/get-names`, `/projects/write-text-file`
+- [x] Built Spring 2026 student roster (19 students) from course file + name resolution API
+- [x] Updated `Developer/OpenRouter/OpenRouter_CoCalc/names.csv` with Spring 2026 roster
+- [x] Copied `DS776_Spring_2026.course` to local Developer directory
+
+#### `/diagnose-student` Skill Enhancement (Three Modes)
+- [x] **Mode 1 (Local file)**: Existing workflow — unchanged
+- [x] **Mode 2 (CoCalc fetch)**: New — fetch notebook by student name + HW# via CoCalc API
+  - Roster lookup from `names.csv` with fuzzy matching (exact, prefix, token)
+  - Starts student project, lists directory, fetches notebook, saves to `tmp/`
+  - Error handling for stopped projects, missing directories, truncated content
+- [x] **Mode 3 (Question only)**: New — diagnose from solution + student question (no notebook)
+- [x] Updated both `SKILL.md` and `diagnose_student.md` (kept identical)
+- [x] Security: API keys use `$COCALC_API_KEY` env var references, never hardcoded
+- [x] Added `tmp/` to `.gitignore` for fetched notebooks and responses
+
+#### Documentation
+- [x] Created `Developer/Course_Management/LOCAL_WORKFLOW.md` — local workflow documentation
+- [x] Includes SSH access, API keys, common workflows, skill integration
+- [x] Platform transition considerations for potential move away from CoCalc (Jan 2027)
+
+#### Security Audit
+- [x] Removed all hardcoded API keys from committable files
+- [x] `Developer/` gitignored (Course_Management with API keys won't be committed)
+- [x] `.claude/` selective ignore: only `commands/` and `skills/` tracked
+- [x] `tmp/` gitignored for fetched student notebooks and diagnostic responses
+- [x] Scanned all committable files for secrets before committing
+
+### Key Files
+| File | Description |
+|------|-------------|
+| `~/.ssh/cocalc_ds776` | SSH key for CoCalc access |
+| `~/.ssh/config` | Host cocalc alias |
+| `~/.bashrc` | COCALC_API_KEY and COCALC_PROJECT_API_KEY |
+| `Developer/OpenRouter/OpenRouter_CoCalc/names.csv` | Spring 2026 roster (19 students) |
+| `Developer/Course_Management/LOCAL_WORKFLOW.md` | Local workflow documentation |
+| `Developer/Course_Management/manage_course.py` | Course management script (from CoCalc) |
+| `.claude/skills/diagnose-student/SKILL.md` | Enhanced skill with 3 modes |
+| `.claude/commands/diagnose_student.md` | Matching command definition |
+
+---
+
 ## 🔮 Future Enhancements (Low Priority)
 
 - [ ] Add automatic cost reporting dashboard
@@ -708,6 +765,18 @@ Session 2+ (re-runs):
 - [ ] Add streaming response support
 - [ ] TrainerWithPretend: Push trained models to HF Hub automatically
 - [ ] TrainerWithPretend: Support for multi-GPU training
+
+### CoCalc Remote Management (Future)
+- [ ] Build additional CoCalc management skills (fetch assignments, push materials, check status)
+- [ ] Implement Piazza API integration (`piazza-api` v0.15.0 — research complete)
+  - Monitor student questions and draft responses
+  - Alert system for new posts
+- [ ] Explore running Claude Code on CoCalc compute servers (feasible with native installer)
+- [ ] Platform abstraction for potential transition away from CoCalc (Jan 2027)
+  - Roster interface (any platform can produce CSV)
+  - Notebook fetch abstraction (CoCalc API / SSH / JupyterHub API / local)
+  - Command execution abstraction
+  - `manage_course.py` platform adapter pattern
 
 ---
 
@@ -758,25 +827,20 @@ Session 2+ (re-runs):
 5. ✅ WSL Native Filesystem Migration COMPLETE
 6. ✅ Homework 06 Reflections Summary COMPLETE (2025-10-20)
 7. ✅ Lesson 11 v2 - Text Generation COMPLETE (2025-10-28)
-   - Updated with 2025 models, agentic AI, reasoning models
-   - Added API usage section (OpenRouter, helper functions)
-   - Enhanced with 70B model demonstrations
-   - Created background supplement notebook
 8. ✅ Homework 11 v2 - Text Generation COMPLETE (2025-10-28)
-   - Reading questions from NLPWT Chapter 5
-   - 6 technical parts covering decoding, APIs, model sizes
-   - **TODO: Create solutions notebook**
-   - **TODO: Test all code end-to-end**
-9. 🔥 **NEXT: Lesson 10 - Named Entity Recognition**
-   - Update to new llm_generate API
-   - Compare specialized NER models vs LLM zero-shot
-   - Add TrainerWithPretend if using HuggingFace Trainer
-   - Update Homework 10 with reading questions + reflection
-10. 🔥 **HIGH PRIORITY: Custom GPT Bundle for Lessons 7-12**
+9. ✅ CoCalc Remote Management Integration COMPLETE (2026-03-01)
+   - SSH access, API keys, roster, /diagnose-student 3-mode enhancement
+   - See "CoCalc Remote Management Integration" section above
+10. 🔥 **NEXT: Lesson 10 - Named Entity Recognition**
+    - Update to new llm_generate API
+    - Compare specialized NER models vs LLM zero-shot
+    - Add TrainerWithPretend if using HuggingFace Trainer
+    - Update Homework 10 with reading questions + reflection
+11. 🔥 **HIGH PRIORITY: Custom GPT Bundle for Lessons 7-12**
     - Review `Developer/Notes/Custom_GPT_Bundle_Plan.md`
     - Package lesson materials into Custom GPT knowledge base
     - Test with typical student queries
-11. ⏭️ **THEN: Lesson 12 - Summarization**
+12. ⏭️ **THEN: Lesson 12 - Summarization**
     - Update to new llm_generate API
     - Compare specialized models vs LLMs
     - Update corresponding homework assignment

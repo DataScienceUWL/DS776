@@ -66,6 +66,7 @@ Homework/Homework_*/Homework_*_Models/
 *.tmp
 *.temp
 *.cache
+tmp/
 
 # Course_Tools cleanup timestamp
 Lessons/Course_Tools/.last_cleanup
@@ -78,8 +79,10 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Claude AI specific
-.claude/
+# Claude AI specific - ignore .claude except skills and commands (slash commands)
+.claude/*
+!.claude/commands/
+!.claude/skills/
 tools/
 
 # Resource manifest files
