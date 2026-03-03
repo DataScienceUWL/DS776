@@ -766,25 +766,67 @@ Session 2+ (re-runs):
 - [ ] TrainerWithPretend: Push trained models to HF Hub automatically
 - [ ] TrainerWithPretend: Support for multi-GPU training
 
-### CoCalc Remote Management (Future)
-- [ ] Build additional CoCalc management skills (fetch assignments, push materials, check status)
-- [ ] Implement Piazza API integration (`piazza-api` v0.15.0 — research complete)
-  - Monitor student questions and draft responses
-  - Alert system for new posts
+### Course Dashboard & Platform Integrations (Active — March 2026)
+
+**Goal:** Unified course management from WSL via Claude Code skills
+
+#### Phase 1: Canvas LMS Integration (Next Priority)
+- [ ] Generate Canvas API token (Account > Settings > Approved Integrations)
+- [ ] Find DS776 course ID and assignment IDs from Canvas URLs
+- [ ] Add `CANVAS_API_KEY` to `~/.bashrc`
+- [ ] Install `canvasapi` library (`pip install canvasapi`, v3.2.0)
+- [ ] Build `/fetch-submissions` skill — download student .ipynb submissions by HW#
+- [ ] Build `/grade-submission` skill — upload grade + feedback comment to Canvas
+- [ ] Cross-reference Canvas user IDs with roster (`names.csv`)
+
+**Research complete.** Key findings:
+- Python library: `canvasapi` (UCF Open, well-maintained)
+- Base URL: `https://<institution>.instructure.com/api/v1/`
+- Auth: Bearer token in Authorization header
+- Download URLs include verifier tokens (no extra auth for file downloads)
+- Rate limit: ~700 requests / 10 min
+- `submission.upload_comment()` handles multi-step file upload
+
+#### Phase 2: Piazza Integration
+- [ ] Install `piazza-api` (`pip install piazza-api`, v0.15.0)
+- [ ] Store Piazza credentials securely in `~/.bashrc`
+- [ ] Find Piazza network ID from URL
+- [ ] Test authentication (known issue #68 — login failures possible)
+- [ ] Build `/piazza-check` skill — fetch unanswered/unresolved posts
+- [ ] Build `/piazza-respond` skill — draft + post instructor answer (with confirmation)
+
+**Research complete.** Key findings:
+- Unofficial API wrapping Piazza's internal JSON-RPC (no official API exists)
+- Auth: email/password login, can export/import session cookies
+- Filter: `'unresolved'`, `'unread'`, `'following'` properties
+- Post instructor answer: `network.create_instructor_answer(post_id, content, revision=1)`
+- Bug: Issue #74 — pass integer post IDs, not strings
+- `iter_all_posts(sleep=1)` — use sleep param to avoid rate limits
+- Content is HTML — wrap in `<p>` tags, code in `<pre><code>`
+- Fallback: Selenium/Playwright scraping if API breaks
+
+#### Phase 3: Unified Dashboard
+- [ ] Build `/course-status` skill — unified view across all platforms
+  - Ungraded Canvas submissions
+  - Unanswered Piazza questions
+  - CoCalc student project status
+- [ ] Build additional CoCalc management skills (push materials, check status)
+
+#### Platform Abstraction (For Jan 2027 Transition)
+- [ ] Roster interface (any platform produces CSV)
+- [ ] Notebook fetch abstraction (CoCalc API / Canvas API / SSH / JupyterHub / local)
+- [ ] Command execution abstraction
+- [ ] `manage_course.py` platform adapter pattern
 - [ ] Explore running Claude Code on CoCalc compute servers (feasible with native installer)
-- [ ] Platform abstraction for potential transition away from CoCalc (Jan 2027)
-  - Roster interface (any platform can produce CSV)
-  - Notebook fetch abstraction (CoCalc API / SSH / JupyterHub API / local)
-  - Command execution abstraction
-  - `manage_course.py` platform adapter pattern
 
 ---
 
 ## 📚 Reference Documents
 
+- **Next Session Context**: `Developer/NEXT_SESSION.md` — Canvas/Piazza/CoCalc integration plans
+- **Local Workflow**: `Developer/Course_Management/LOCAL_WORKFLOW.md` — SSH, API, skills documentation
+- **Course Management**: `Developer/Course_Management/README.md` — manage_course.py and scripts
 - **OpenRouter Deployment**: `Developer/OpenRouter/ENCRYPTED_DEPLOYMENT_GUIDE.md`
-- **Deployment Status**: `Developer/OpenRouter/OpenRouter_CoCalc/DEPLOYMENT_COMPLETE.md` (outdated)
-- **Next Session Context**: `Developer/NEXT_SESSION.md`
 - **Master Notebook**: `Developer/openrouter_json_generation_master_v2.ipynb`
 - **Model Config**: `Lessons/Course_Tools/introdl/src/introdl/openrouter_models.json`
 
