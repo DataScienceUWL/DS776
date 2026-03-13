@@ -124,8 +124,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.66"
+__version__ = "1.6.67"
 # Version history:
+# 1.6.67 - Pin transformers<5 in pyproject.toml (v5 removed translation/summarization pipelines)
+#          - Fix auto_update to not upgrade transformers past the pin
 # 1.6.66 - auto_update syncs transformers/accelerate on install; friendly error in generation.py
 # 1.6.65 - Friendly error message in generation.py when transformers/accelerate are incompatible
 # 1.6.64 - Lazy-import generation and summarization modules to avoid transformers/accelerate circular import

@@ -849,19 +849,21 @@ def main():
                 if verbose:
                     print_status("Installation command completed")
 
-                # Ensure transformers and accelerate are compatible
-                # Upgrading them together lets pip resolve a compatible pair
+                # Ensure accelerate is compatible with installed transformers
+                # Note: we do NOT upgrade transformers here — the version is pinned
+                # in pyproject.toml (transformers>=4.49.0,<5) to avoid breaking
+                # pipeline tasks (translation, summarization) removed in v5.
                 if verbose:
-                    print_info("Syncing transformers and accelerate versions...")
+                    print_info("Syncing accelerate version...")
                 sync_result = subprocess.run([
                     sys.executable, "-m", "pip", "install", "--upgrade",
-                    "transformers", "accelerate", "--no-cache-dir", "--quiet"
+                    "accelerate", "--no-cache-dir", "--quiet"
                 ], capture_output=True, text=True)
                 if verbose:
                     if sync_result.returncode == 0:
-                        print_status("transformers/accelerate synced")
+                        print_status("accelerate synced")
                     else:
-                        print_warning("transformers/accelerate sync failed (non-fatal)")
+                        print_warning("accelerate sync failed (non-fatal)")
 
                 # Invalidate Python's import cache again to pick up new installation
                 import importlib
