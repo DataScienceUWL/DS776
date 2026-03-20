@@ -124,8 +124,10 @@ def suppress_stderr():
     finally:
         sys.stderr = old_stderr
 
-__version__ = "1.6.67"
+__version__ = "1.6.69"
 # Version history:
+# 1.6.69 - Pin accelerate<1.3 in pyproject.toml (accelerate 1.3+ has circular import with torch 2.6 on CoCalc home server)
+# 1.6.68 - (released on CoCalc)
 # 1.6.67 - Pin transformers<5 in pyproject.toml (v5 removed translation/summarization pipelines)
 #          - Fix auto_update to not upgrade transformers past the pin
 # 1.6.66 - auto_update syncs transformers/accelerate on install; friendly error in generation.py

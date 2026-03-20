@@ -10,7 +10,7 @@ authors = [
     { name = "Your Name", email = "you@example.com" }
 ]
 dependencies = [
-    "accelerate",
+    "accelerate>=0.34.0,<1.3",
     "beautifulsoup4",
     "bert_score",
     "bertviz",
