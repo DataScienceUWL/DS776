@@ -1,49 +1,30 @@
+# =============================================================================
+# Whitelist approach: ignore everything, then allow only Homework/ and Lessons/
+# =============================================================================
+
+# Ignore everything by default
+/*
+
+# Allow Homework and Lessons directories
+!/Homework/
+!/Lessons/
+
+# Allow .gitignore itself
+!.gitignore
+
+# ---------- Rules within allowed directories ----------
+
 # Ignore Python cache files
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyc
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
 # Ignore macOS DS_Store files
 .DS_Store
-
-# ignore vscode settings
-.vscode/
-
-# Ignore Solutions Notebooks
-Solutions*.ipynb_checkpoints
-Solutions*.ipynb
-
-# Developer folder - contains instructor resources, not distributed
-Developer/
-
-# Ignore extras folder
-extras/
-
-# Homework test notebooks (development only)
-Homework/Homework_Tests/
-
-# Ignore Textbooks
-Textbooks/
-Resources/
-
-# Testing scripts and notes (contain credentials/tokens)
-test_in_cocalc.sh
-update_cocalc_test.sh
-
-# Root-level markdown files (except README.md) 
-/*.md
-!README.md
-CLAUDE.md
-
-# Workspace directories (contain user data and models)
-home_workspace/
-cs_workspace/
-data/
-downloads/
-models/
 
 # Lesson and Homework Models folders
 Lessons/Lesson_*/Lesson_*_Models/
@@ -66,7 +47,6 @@ Homework/Homework_*/Homework_*_Models/
 *.tmp
 *.temp
 *.cache
-tmp/
 
 # Course_Tools cleanup timestamp
 Lessons/Course_Tools/.last_cleanup
@@ -75,15 +55,17 @@ Lessons/Course_Tools/.last_cleanup
 *.egg-info/
 build/
 dist/
-__pycache__/
-*.pyc
-*.pyo
 
-# Claude AI specific - ignore .claude except skills and commands (slash commands)
-.claude/*
-!.claude/commands/
-!.claude/skills/
-tools/
+# Homework test notebooks (development only)
+Homework/Homework_Tests/
 
-# Resource manifest files
+# Data and workspace directories within Homework/Lessons
+Homework/*/data/
+Homework/*/home_workspace/
+Lessons/*/data/
+
+# Solutions notebooks (instructor only)
+Solutions*.ipynb
+
+# Resource manifests (auto-generated)
 Resource_Manifest.md
